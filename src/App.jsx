@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Header from './components/layout/Header.jsx';
 import BottomNav from './components/layout/BottomNav.jsx';
 import Dashboard from './views/Dashboard.jsx';
@@ -106,6 +107,9 @@ export default function App() {
       >
         Weather: Open-Meteo.com (CC BY 4.0) · Meteograms: Meteotrentino · ΔP methodology: profiwetter.ch
       </div>
+
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
     </div>
   );
 }
