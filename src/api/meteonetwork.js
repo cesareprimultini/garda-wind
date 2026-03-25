@@ -57,15 +57,16 @@ async function fetchInterpolated(lat, lon) {
  * @param {Array<{ id: string, lat: number, lon: number }>} stations
  */
 export async function fetchMeteoNetworkAll(stations) {
-  const results = await Promise.allSettled(
-    stations.map(s => fetchInterpolated(s.lat, s.lon).then(d => ({ id: s.id, data: d })))
-  );
-
   const map = {};
-  for (const result of results) {
-    if (result.status === 'fulfilled' && result.value) {
-      map[result.value.id] = result.value.data;
+  // Sequential with 300ms stagger to avoid burst rate-limiting
+  for (const s of stations) {
+    try {
+      const data = await fetchInterpolated(s.lat, s.lon);
+      map[s.id] = data;
+    } catch {
+      map[s.id] = null;
     }
+    await new Promise(r => setTimeout(r, 300));
   }
   return map;
 }
