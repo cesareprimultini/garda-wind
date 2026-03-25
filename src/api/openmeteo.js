@@ -159,7 +159,7 @@ export async function fetchAllData(stationId, modelId) {
     fetchDWDObserved(DWD_STATIONS.innsbruck),
     fetchZAMGInnsbruck(),
     fetchLegaNavaleGarda(),
-    fetchMeteoNetworkAll(STATIONS),
+    fetchMeteoNetworkAll([station]),
   ]);
 
   if (stationResult.status === 'rejected') throw stationResult.reason;
