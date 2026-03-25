@@ -12,6 +12,23 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => '/leganavalegarda/homepage/blocks/current/updater.php?interval=11',
       },
+      '/api/meteonetwork': {
+        target: 'https://api.meteonetwork.it',
+        changeOrigin: true,
+        rewrite: (path) => {
+          const url = new URL(path, 'http://localhost');
+          const { lat, lon, station } = Object.fromEntries(url.searchParams);
+          if (station) return `/v3/data-realtime/${station}`;
+          return `/v3/interpolated-realtime?lat=${lat}&lon=${lon}`;
+        },
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            const token = process.env.METEONETWORK_TOKEN || '';
+            if (token) proxyReq.setHeader('Authorization', `Bearer ${token}`);
+            proxyReq.setHeader('User-Agent', 'GardaWind/1.0');
+          });
+        },
+      },
     },
   },
   build: {

@@ -2,6 +2,7 @@ import { MODELS, STATIONS, PRESSURE_NODES } from '../utils/constants.js';
 import { fetchDWDObserved, DWD_STATIONS } from './dwd.js';
 import { fetchZAMGInnsbruck } from './zamg.js';
 import { fetchLegaNavaleGarda } from './legaNavale.js';
+import { fetchMeteoNetworkAll } from './meteonetwork.js';
 
 const ENSEMBLE_API = 'https://ensemble-api.open-meteo.com/v1/ensemble';
 
@@ -144,6 +145,7 @@ export async function fetchAllData(stationId, modelId) {
     dwdInnsbruckResult,
     zamgInnsbruckResult,
     legaNavaleResult,
+    meteoNetworkResult,
   ] = await Promise.allSettled([
     fetchStationData(station.lat, station.lon, modelId),
     fetchPressureNode(PRESSURE_NODES.bolzano.lat,   PRESSURE_NODES.bolzano.lon),
@@ -157,6 +159,7 @@ export async function fetchAllData(stationId, modelId) {
     fetchDWDObserved(DWD_STATIONS.innsbruck),
     fetchZAMGInnsbruck(),
     fetchLegaNavaleGarda(),
+    fetchMeteoNetworkAll(STATIONS),
   ]);
 
   if (stationResult.status === 'rejected') throw stationResult.reason;
@@ -179,6 +182,7 @@ export async function fetchAllData(stationId, modelId) {
   logFail('DWD Innsbruck obs', dwdInnsbruckResult);
   logFail('ZAMG Innsbruck obs',zamgInnsbruckResult);
   logFail('Lega Navale Garda', legaNavaleResult);
+  logFail('MeteoNetwork',      meteoNetworkResult);
 
   return {
     stationRaw,
@@ -195,6 +199,7 @@ export async function fetchAllData(stationId, modelId) {
     dwdInnsbruckObs:   dwdInnsbruckResult.status  === 'fulfilled' ? dwdInnsbruckResult.value  : null,
     zamgInnsbruckObs:  zamgInnsbruckResult.status === 'fulfilled' ? zamgInnsbruckResult.value : null,
     legaNavaleObs:     legaNavaleResult.status    === 'fulfilled' ? legaNavaleResult.value    : null,
+    meteoNetworkObs:   meteoNetworkResult.status === 'fulfilled' ? meteoNetworkResult.value  : {},
   };
 }
 

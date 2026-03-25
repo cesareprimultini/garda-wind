@@ -109,11 +109,12 @@ export default function Dashboard({ data, loading, error, stationId }) {
   const cloud    = nowEntry?.cloud ?? null;
 
   // ── Live observed data (per-station) ──────────────────────────
-  // Map station IDs to their observed source in data.observed
+  // Priority: Lega Navale (Bardolino only) > MeteoNetwork interpolated > model
+  const mnObs = data?.observed?.meteoNetwork?.[stationId] ?? null;
   const LIVE_SOURCES = {
-    bardolino: data?.observed?.bardolinoWind ?? null,
+    bardolino: data?.observed?.bardolinoWind ?? mnObs,
   };
-  const liveWind  = LIVE_SOURCES[stationId] ?? null;
+  const liveWind  = LIVE_SOURCES[stationId] ?? mnObs;
   const isLive    = liveWind !== null;
   const liveLabel = liveWind?.source ?? null;
 
@@ -121,7 +122,8 @@ export default function Dashboard({ data, loading, error, stationId }) {
   const windSpeed = liveWind?.speedKn  ?? current?.windSpeed ?? null;
   const windGusts = liveWind?.gustKn   ?? current?.windGusts ?? null;
   const windDir   = liveWind?.dir      ?? current?.windDir   ?? null;
-  const pressure  = (isLive ? data?.observed?.bardolinoMslp : null) ?? current?.pressure ?? null;
+  const liveMslp  = data?.observed?.bardolinoMslp ?? mnObs?.mslp ?? null;
+  const pressure  = (isLive ? liveMslp : null) ?? current?.pressure ?? null;
   const temp      = liveWind?.temp     ?? current?.temp      ?? null;
 
   // Recompute quality/regime/kite from live speed when available

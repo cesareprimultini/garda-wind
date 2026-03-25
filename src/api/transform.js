@@ -82,6 +82,7 @@ function calcEnsembleDp(bolzanoValues, ghediValues) {
  * @param {object|null} opts.dwdInnsbruckObs  - DWD observed: Innsbruck airport (11120)
  * @param {object|null} opts.zamgInnsbruckObs - ZAMG TAWES observed: Innsbruck Uni (11320)
  * @param {object|null} opts.legaNavaleObs    - Lega Navale Garda: Davis VP2 on-lake station (Bardolino)
+ * @param {object}      opts.meteoNetworkObs  - MeteoNetwork interpolated: stationId → observed data
  */
 export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
   const {
@@ -94,6 +95,7 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     dwdInnsbruckObs  = null,
     zamgInnsbruckObs = null,
     legaNavaleObs    = null,
+    meteoNetworkObs  = {},
   } = opts;
 
   const now = new Date();
@@ -368,6 +370,8 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
       source:  legaNavaleObs.source,
     } : null,
     bardolinoSource: legaNavaleObs ? 'Lega Navale Garda' : null,
+    // MeteoNetwork interpolated — keyed by stationId, null per station if unavailable
+    meteoNetwork: meteoNetworkObs,
   };
 
   return {
