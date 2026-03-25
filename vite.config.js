@@ -10,12 +10,26 @@ export default defineConfig({
       '/api/openmeteo': {
         target: 'https://api.open-meteo.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace('/api/openmeteo', ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const url = new URL(req.url, 'http://localhost');
+            const p = url.searchParams.get('_path') || 'v1/forecast';
+            url.searchParams.delete('_path');
+            proxyReq.path = `/${p}?${url.searchParams.toString()}`;
+          });
+        },
       },
       '/api/ensemble': {
         target: 'https://ensemble-api.open-meteo.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace('/api/ensemble', ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const url = new URL(req.url, 'http://localhost');
+            const p = url.searchParams.get('_path') || 'v1/ensemble';
+            url.searchParams.delete('_path');
+            proxyReq.path = `/${p}?${url.searchParams.toString()}`;
+          });
+        },
       },
       '/api/dwd': {
         target: 'https://opendata.dwd.de',

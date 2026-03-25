@@ -4,7 +4,7 @@ import { fetchZAMGInnsbruck } from './zamg.js';
 import { fetchLegaNavaleGarda } from './legaNavale.js';
 import { fetchMeteoNetworkAll } from './meteonetwork.js';
 
-const ENSEMBLE_API = '/api/ensemble/v1/ensemble';
+const ENSEMBLE_API = '/api/ensemble?_path=v1/ensemble';
 
 const HOURLY_VARS = [
   'wind_speed_10m',
@@ -63,7 +63,7 @@ export async function fetchStationData(lat, lon, modelId) {
       current: CURRENT_VARS,
     });
 
-    const url = `${model.url}?${params.toString()}`;
+    const url = `${model.url}&${params.toString()}`;
 
     try {
       const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
@@ -95,7 +95,7 @@ export async function fetchPressureNode(lat, lon) {
     past_days: '1',
   });
 
-  const url = `/api/openmeteo/v1/forecast?${params.toString()}`;
+  const url = `/api/openmeteo?_path=v1/forecast&${params.toString()}`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching pressure node`);
   const data = await resp.json();
@@ -117,7 +117,7 @@ export async function fetchEnsemblePressure(lat, lon) {
     timezone: 'Europe/Rome',
   });
 
-  const url = `${ENSEMBLE_API}?${params.toString()}`;
+  const url = `${ENSEMBLE_API}&${params.toString()}`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
   if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ensemble`);
   const data = await resp.json();
