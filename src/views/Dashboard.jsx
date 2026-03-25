@@ -120,9 +120,9 @@ export default function Dashboard({ data, loading, error, stationId }) {
   const liveLabel = liveWind?.source ?? null;
 
   // Prefer live observed values; fall back to model current
-  const windSpeed = liveWind?.speedKn  ?? current?.windSpeed ?? null;
-  const windGusts = liveWind?.gustKn   ?? current?.windGusts ?? null;
-  const windDir   = liveWind?.dir      ?? current?.windDir   ?? null;
+  const windSpeed = liveWind?.windSpeedKn ?? current?.windSpeed ?? null;
+  const windGusts = liveWind?.windGustKn  ?? current?.windGusts ?? null;
+  const windDir   = liveWind?.windDir     ?? current?.windDir   ?? null;
   const isLegaNavale = stationId === 'bardolino' || stationId === 'leganavale';
   const liveMslp  = (isLegaNavale ? data?.observed?.bardolinoMslp : null) ?? mnObs?.mslp ?? null;
   const pressure  = (isLive ? liveMslp : null) ?? current?.pressure ?? null;
