@@ -1,4 +1,4 @@
-import { detectRegime, getQuality, getKiteSize, getDpInterpretation } from '../utils/windPhysics.js';
+import { detectRegime, getQuality, getKiteSize, getDpInterpretation, computeDpTrend, getRegimeConfidenceModifier } from '../utils/windPhysics.js';
 
 /**
  * Build a timestamp-keyed map from parallel time/value arrays.
@@ -161,11 +161,20 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     const precip      = h.precipitation?.[i]      ?? null;
     const weatherCode = h.weather_code?.[i]       ?? null;
 
-    const regime      = detectRegime(dp, windDir);
-    const quality     = getQuality(windSpeed);
+    // Local hour in Europe/Rome (UTC+1 winter, UTC+2 summer)
+    const localHour = new Date(time).getHours(); // Open-Meteo times are already local
+
+    // Trento–Ghedi secondary ΔP: validates whether gradient extends to the lake
+    const trentoDp = trentoPressure !== null && ghediPressure !== null
+      ? parseFloat((trentoPressure - ghediPressure).toFixed(2))
+      : null;
+
+    const regime        = detectRegime(dp, windDir, localHour);
+    const quality       = getQuality(windSpeed);
     const kiteSizeLabel = getKiteSize(windSpeed);
-    const dpInterp    = getDpInterpretation(dp);
-    const diffH       = Math.round((new Date(time) - now) / 3600000);
+    const dpInterp      = getDpInterpretation(dp, null, localHour);
+    const confidenceMod = getRegimeConfidenceModifier(regime, localHour, null);
+    const diffH         = Math.round((new Date(time) - now) / 3600000);
 
     return {
       time,
@@ -188,6 +197,7 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
       // ΔP variants
       dp,
       dpNorth,
+      dpTrento: trentoDp,
       // Ensemble ΔP (null outside 3-day ensemble window)
       dpEnsembleMean:       ensembleDp?.mean             ?? null,
       dpEnsembleMin:        ensembleDp?.min              ?? null,
@@ -201,6 +211,10 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
       quality,
       kiteSizeLabel,
       estimatedWindFromDp: dpInterp.estimatedKnots,
+      dpConfidence: dpInterp.confidence,
+      dpTrend: dpInterp.trend,
+      regimeConfidenceMod: confidenceMod,
+      localHour,
     };
   });
 
@@ -318,9 +332,26 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     if (currentDpEnsemble !== null) break;
   }
 
-  const currentRegime   = detectRegime(currentDp, current.windDir);
+  // Current dΔP/dt: compare nearest minutely_15 dp with one from ~60 min ago
+  let currentDpTrend = null;
+  if (minutely15.length > 3) {
+    const validEntries = minutely15.filter(e => e.dp !== null);
+    if (validEntries.length >= 4) {
+      const latest = validEntries[validEntries.length - 1];
+      const older  = validEntries[Math.max(0, validEntries.length - 5)]; // ~60 min back
+      const intervalMin = (new Date(latest.time) - new Date(older.time)) / 60000;
+      if (intervalMin > 0) {
+        currentDpTrend = computeDpTrend(latest.dp, older.dp, intervalMin);
+      }
+    }
+  }
+
+  const nowLocalHour    = now.getHours();
+  const currentRegime   = detectRegime(currentDp, current.windDir, nowLocalHour);
   const currentQuality  = getQuality(current.windSpeed);
   const currentKiteSize = getKiteSize(current.windSpeed);
+  const currentDpInterp = getDpInterpretation(currentDp, currentDpTrend, nowLocalHour);
+  const currentConfidenceMod = getRegimeConfidenceModifier(currentRegime, nowLocalHour, currentDpTrend);
 
   // --- Observed (real-time measured) data summary ---
   // Innsbruck observed: prefer ZAMG (10-min), fallback DWD (hourly)
@@ -379,10 +410,13 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     minutely15,
     current,
     currentDp,
+    currentDpTrend,
     currentDpEnsemble,
     currentRegime,
     currentQuality,
     currentKiteSize,
+    currentDpInterp,
+    currentConfidenceMod,
     observed,
   };
 }
