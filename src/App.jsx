@@ -65,6 +65,7 @@ export default function App() {
             data={data}
             loading={loading}
             error={error}
+            stationId={selectedStation}
           />
         )}
         {activePanel === 'map' && (

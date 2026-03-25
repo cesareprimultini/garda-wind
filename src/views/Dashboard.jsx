@@ -2,6 +2,7 @@ import HeroWindCard from '../components/cards/HeroWindCard.jsx';
 import DeltaPressureCard from '../components/cards/DeltaPressureCard.jsx';
 import SportGearGrid from '../components/cards/SportGearGrid.jsx';
 import HourlyTimeline from '../components/forecast/HourlyTimeline.jsx';
+import { detectRegime, getQuality, getKiteSize } from '../utils/windPhysics.js';
 
 // ─── tiny section header ─────────────────────────────────────────
 function SectionLabel({ children, right }) {
@@ -84,7 +85,7 @@ function DashboardSkeleton() {
  *   GEAR       — 2×2 sport cards (Kitesurf, Kite Foil, Windsurf, Wing Foil)
  *   TODAY      — Hourly timeline
  */
-export default function Dashboard({ data, loading, error }) {
+export default function Dashboard({ data, loading, error, stationId }) {
   if (loading && !data) return <DashboardSkeleton />;
 
   if (error && !data) {
@@ -100,19 +101,36 @@ export default function Dashboard({ data, loading, error }) {
     );
   }
 
-  const current       = data?.current;
-  const hourly        = data?.hourly     ?? [];
-  const regime        = data?.currentRegime  ?? 'variable';
-  const quality       = data?.currentQuality ?? 'none';
-  const kiteSizeLabel = data?.currentKiteSize ?? '—';
-  const dp            = data?.currentDp  ?? null;
-
-  const pressure  = current?.pressure  ?? null;
-  const temp      = current?.temp      ?? null;
-  const windGusts = current?.windGusts ?? null;
+  const current  = data?.current;
+  const hourly   = data?.hourly ?? [];
+  const dp       = data?.currentDp ?? null;
 
   const nowEntry = hourly.find(h => h.isNow) ?? hourly[0];
   const cloud    = nowEntry?.cloud ?? null;
+
+  // ── Live observed data (per-station) ──────────────────────────
+  // Map station IDs to their observed source in data.observed
+  const LIVE_SOURCES = {
+    bardolino: data?.observed?.bardolinoWind ?? null,
+  };
+  const liveWind  = LIVE_SOURCES[stationId] ?? null;
+  const isLive    = liveWind !== null;
+  const liveLabel = liveWind?.source ?? null;
+
+  // Prefer live observed values; fall back to model current
+  const windSpeed = liveWind?.speedKn  ?? current?.windSpeed ?? null;
+  const windGusts = liveWind?.gustKn   ?? current?.windGusts ?? null;
+  const windDir   = liveWind?.dir      ?? current?.windDir   ?? null;
+  const pressure  = (isLive ? data?.observed?.bardolinoMslp : null) ?? current?.pressure ?? null;
+  const temp      = liveWind?.temp     ?? current?.temp      ?? null;
+
+  // Recompute quality/regime/kite from live speed when available
+  const regime        = isLive ? detectRegime(dp, windDir)  : (data?.currentRegime  ?? 'variable');
+  const quality       = isLive ? getQuality(windSpeed)      : (data?.currentQuality ?? 'none');
+  const kiteSizeLabel = isLive ? getKiteSize(windSpeed)     : (data?.currentKiteSize ?? '—');
+
+  // Compose a current-shaped object for child components
+  const currentDisplay = { windSpeed, windGusts, windDir, pressure, temp };
 
   // Colour hints for mini stats
   const pressureColor = pressure !== null
@@ -121,8 +139,8 @@ export default function Dashboard({ data, loading, error }) {
   const tempColor = temp !== null
     ? (temp > 28 ? '#f5a428' : temp < 3 ? '#5090ff' : 'var(--text-1)')
     : undefined;
-  const cloudColor  = cloud !== null && cloud > 80 ? '#6a8099' : 'var(--text-1)';
-  const gustsColor  = windGusts !== null && windGusts > 25 ? '#f43f5e' : 'var(--text-1)';
+  const cloudColor = cloud !== null && cloud > 80 ? '#6a8099' : 'var(--text-1)';
+  const gustsColor = windGusts !== null && windGusts > 25 ? '#f43f5e' : 'var(--text-1)';
 
   return (
     <div
@@ -157,7 +175,18 @@ export default function Dashboard({ data, loading, error }) {
       {/* ═══════════════════════════════════════════════════ */}
       {/* SECTION 2 — STATION: Hero + 2×2 mini stat grid     */}
       {/* ═══════════════════════════════════════════════════ */}
-      <SectionLabel right="local model data">Station</SectionLabel>
+      <SectionLabel right={
+        isLive
+          ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{
+                background: '#0dcfa820', border: '1px solid #0dcfa840',
+                color: '#0dcfa8', borderRadius: 4, padding: '1px 5px',
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+              }}>LIVE</span>
+              <span>{liveLabel}</span>
+            </span>
+          : 'model data'
+      }>Station</SectionLabel>
       <div
         style={{
           display: 'grid',
@@ -169,7 +198,7 @@ export default function Dashboard({ data, loading, error }) {
         }}
       >
         <HeroWindCard
-          current={current}
+          current={currentDisplay}
           regime={regime}
           quality={quality}
           kiteSizeLabel={kiteSizeLabel}
@@ -211,7 +240,7 @@ export default function Dashboard({ data, loading, error }) {
       {/* ═══════════════════════════════════════════════════ */}
       <SectionLabel right="size recommendations">Gear</SectionLabel>
       <div style={{ marginTop: 6, marginBottom: 14 }}>
-        <SportGearGrid windSpeed={current?.windSpeed} />
+        <SportGearGrid windSpeed={windSpeed} />
       </div>
 
       {/* ═══════════════════════════════════════════════════ */}
