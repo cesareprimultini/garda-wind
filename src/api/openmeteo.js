@@ -1,6 +1,7 @@
 import { MODELS, STATIONS, PRESSURE_NODES } from '../utils/constants.js';
 import { fetchDWDObserved, DWD_STATIONS } from './dwd.js';
 import { fetchZAMGInnsbruck } from './zamg.js';
+import { fetchLegaNavaleGarda } from './legaNavale.js';
 
 const ENSEMBLE_API = 'https://ensemble-api.open-meteo.com/v1/ensemble';
 
@@ -142,6 +143,7 @@ export async function fetchAllData(stationId, modelId) {
     dwdGhediResult,
     dwdInnsbruckResult,
     zamgInnsbruckResult,
+    legaNavaleResult,
   ] = await Promise.allSettled([
     fetchStationData(station.lat, station.lon, modelId),
     fetchPressureNode(PRESSURE_NODES.bolzano.lat,   PRESSURE_NODES.bolzano.lon),
@@ -154,6 +156,7 @@ export async function fetchAllData(stationId, modelId) {
     fetchDWDObserved(DWD_STATIONS.ghedi),
     fetchDWDObserved(DWD_STATIONS.innsbruck),
     fetchZAMGInnsbruck(),
+    fetchLegaNavaleGarda(),
   ]);
 
   if (stationResult.status === 'rejected') throw stationResult.reason;
@@ -175,6 +178,7 @@ export async function fetchAllData(stationId, modelId) {
   logFail('DWD Ghedi obs',     dwdGhediResult);
   logFail('DWD Innsbruck obs', dwdInnsbruckResult);
   logFail('ZAMG Innsbruck obs',zamgInnsbruckResult);
+  logFail('Lega Navale Garda', legaNavaleResult);
 
   return {
     stationRaw,
@@ -190,6 +194,7 @@ export async function fetchAllData(stationId, modelId) {
     dwdGhediObs:       dwdGhediResult.status      === 'fulfilled' ? dwdGhediResult.value      : null,
     dwdInnsbruckObs:   dwdInnsbruckResult.status  === 'fulfilled' ? dwdInnsbruckResult.value  : null,
     zamgInnsbruckObs:  zamgInnsbruckResult.status === 'fulfilled' ? zamgInnsbruckResult.value : null,
+    legaNavaleObs:     legaNavaleResult.status    === 'fulfilled' ? legaNavaleResult.value    : null,
   };
 }
 

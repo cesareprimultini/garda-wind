@@ -6,6 +6,13 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
+    proxy: {
+      '/api/bardolino': {
+        target: 'https://stazioni5.soluzionimeteo.it',
+        changeOrigin: true,
+        rewrite: () => '/leganavalegarda/homepage/blocks/current/updater.php?interval=11',
+      },
+    },
   },
   build: {
     rollupOptions: {

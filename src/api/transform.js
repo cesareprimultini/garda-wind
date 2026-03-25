@@ -81,17 +81,19 @@ function calcEnsembleDp(bolzanoValues, ghediValues) {
  * @param {object|null} opts.dwdGhediObs      - DWD observed: Ghedi/Brescia (16088)
  * @param {object|null} opts.dwdInnsbruckObs  - DWD observed: Innsbruck airport (11120)
  * @param {object|null} opts.zamgInnsbruckObs - ZAMG TAWES observed: Innsbruck Uni (11320)
+ * @param {object|null} opts.legaNavaleObs    - Lega Navale Garda: Davis VP2 on-lake station (Bardolino)
  */
 export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
   const {
-    trentoRaw       = null,
-    veronaRaw       = null,
-    innsbruckRaw    = null,
-    bolzanoEnsemble = null,
-    ghediEnsemble   = null,
-    dwdGhediObs     = null,
-    dwdInnsbruckObs = null,
+    trentoRaw        = null,
+    veronaRaw        = null,
+    innsbruckRaw     = null,
+    bolzanoEnsemble  = null,
+    ghediEnsemble    = null,
+    dwdGhediObs      = null,
+    dwdInnsbruckObs  = null,
     zamgInnsbruckObs = null,
+    legaNavaleObs    = null,
   } = opts;
 
   const now = new Date();
@@ -353,6 +355,19 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     innsbruckMslp:  innsbruckObsMslp,
     innsbruckWind:  innsbruckObsWind,
     innsbruckSource: innsbruckObsWind?.source ?? null,
+    // Lega Navale Garda — real on-lake observed wind + pressure at Bardolino
+    bardolinoMslp:   legaNavaleObs?.mslp        ?? null,
+    bardolinoTime:   legaNavaleObs?.time         ?? null,
+    bardolinoWind:   legaNavaleObs ? {
+      speedKn: legaNavaleObs.windSpeedKn,
+      gustKn:  legaNavaleObs.windGustKn,
+      dir:     legaNavaleObs.windDir,
+      temp:    legaNavaleObs.temp,
+      humidity: legaNavaleObs.humidity,
+      time:    legaNavaleObs.time,
+      source:  legaNavaleObs.source,
+    } : null,
+    bardolinoSource: legaNavaleObs ? 'Lega Navale Garda' : null,
   };
 
   return {
