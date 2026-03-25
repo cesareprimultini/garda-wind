@@ -7,6 +7,15 @@ export default defineConfig({
     port: 5173,
     open: true,
     proxy: {
+      '/api/dwd': {
+        target: 'https://opendata.dwd.de',
+        changeOrigin: true,
+        rewrite: (path) => {
+          const url = new URL(path, 'http://localhost');
+          const station = url.searchParams.get('station');
+          return `/weather/weather_reports/poi/${station}-BEOB.csv`;
+        },
+      },
       '/api/bardolino': {
         target: 'https://stazioni5.soluzionimeteo.it',
         changeOrigin: true,

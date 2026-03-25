@@ -11,7 +11,8 @@
  *   11120 — Innsbruck airport (47.26°N 11.34°E) — northern gradient node
  */
 
-const DWD_POI_BASE = 'https://opendata.dwd.de/weather/weather_reports/poi';
+// Route through /api/dwd proxy to avoid CORS — DWD has no Access-Control-Allow-Origin header
+const DWD_POI_BASE = '/api/dwd?station=';
 
 // Column indices (0-based, semicolon-delimited)
 const COL_DATE     = 0;
@@ -64,7 +65,7 @@ function parseDwdCsv(text) {
  * @returns {Promise<{ time: string, mslp: number, temp: number|null, windDir: number|null, windSpeedKmh: number|null } | null>}
  */
 export async function fetchDWDObserved(stationId) {
-  const url = `${DWD_POI_BASE}/${stationId}-BEOB.csv`;
+  const url = `${DWD_POI_BASE}${stationId}`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!resp.ok) throw new Error(`DWD POI HTTP ${resp.status} for station ${stationId}`);
 

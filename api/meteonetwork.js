@@ -40,6 +40,10 @@ export default async function handler(req, res) {
     });
 
     if (resp.status === 204) return res.status(204).end();
+    // 401 = bad token, 429 = rate limited — return 503 so client skips gracefully
+    if (resp.status === 401 || resp.status === 429) {
+      return res.status(503).json({ error: `MeteoNetwork ${resp.status}` });
+    }
     if (!resp.ok) throw new Error(`MeteoNetwork HTTP ${resp.status}`);
 
     const data = await resp.json();
@@ -48,6 +52,7 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.json(data);
   } catch (err) {
-    res.status(502).json({ error: err.message });
+    // Return 503 (not 502) so client treats it as "unavailable, skip gracefully"
+    res.status(503).json({ error: err.message });
   }
 }
