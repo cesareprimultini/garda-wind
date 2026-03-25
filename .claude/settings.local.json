@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)",
+      "WebFetch(domain:opendata.dwd.de)",
+      "Bash(grep -E \"\\(README|package\\\\.json|\\\\.md$\\)\")",
+      "Bash(ls -la /c/Projects/garda-wind/*.md /c/Projects/garda-wind/package.json)",
+      "WebFetch(domain:www.meteotrentino.it)",
+      "WebFetch(domain:dati.trentino.it)",
+      "WebFetch(domain:www.arpa.veneto.it)",
+      "WebFetch(domain:api.arpa.veneto.it)",
+      "WebFetch(domain:api.open-meteo.com)",
+      "WebFetch(domain:ensemble-api.open-meteo.com)",
+      "WebFetch(domain:wwwold.arpa.veneto.it)",
+      "WebFetch(domain:dataset.api.hub.geosphere.at)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

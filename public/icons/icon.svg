@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#060c15"/>
+
+  <!-- Wind arc lines -->
+  <path d="M80 200 Q180 160 280 200 Q380 240 430 200" stroke="#4d8fff" stroke-width="18" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <path d="M80 256 Q200 210 310 256 Q390 290 450 256" stroke="#4d8fff" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.35"/>
+  <path d="M80 308 Q220 268 330 308 Q400 336 460 310" stroke="#4d8fff" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.2"/>
+
+  <!-- GW monogram -->
+  <text
+    x="256"
+    y="310"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-weight="800"
+    font-size="160"
+    fill="#4d8fff"
+    letter-spacing="-8"
+  >GW</text>
+</svg>

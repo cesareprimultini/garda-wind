@@ -1,0 +1,24 @@
+{
+  "name": "GardaWind",
+  "short_name": "GardaWind",
+  "description": "Wind intelligence for Lake Garda — kitesurfing, windsurfing, wing-foil.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060c15",
+  "theme_color": "#060c15",
+  "icons": [
+    {
+      "src": "/icons/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
