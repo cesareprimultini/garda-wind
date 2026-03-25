@@ -18,7 +18,12 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'MeteoNetwork token not configured' });
   }
 
-  const { station, lat, lon } = req.query;
+  const { station, lat, lon, debug } = req.query;
+
+  // ?debug=1 returns token status without hitting upstream
+  if (debug === '1') {
+    return res.json({ tokenConfigured: true, tokenPrefix: token.slice(0, 8) + '...' });
+  }
 
   let url;
   if (station) {
@@ -41,8 +46,11 @@ export default async function handler(req, res) {
 
     if (resp.status === 204) return res.status(204).end();
     // 401 = bad token, 429 = rate limited — return 503 so client skips gracefully
-    if (resp.status === 401 || resp.status === 429) {
-      return res.status(503).json({ error: `MeteoNetwork ${resp.status}` });
+    if (resp.status === 401) {
+      return res.status(503).json({ error: 'MeteoNetwork 401 - token invalid or expired' });
+    }
+    if (resp.status === 429) {
+      return res.status(503).json({ error: 'MeteoNetwork 429 - rate limited' });
     }
     if (!resp.ok) throw new Error(`MeteoNetwork HTTP ${resp.status}`);
 
