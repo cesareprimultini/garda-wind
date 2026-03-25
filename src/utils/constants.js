@@ -17,9 +17,9 @@ export const PRESSURE_NODES = {
 };
 
 export const MODELS = [
-  { id: 'meteofrance', label: 'AROME 1.3km', url: 'https://api.open-meteo.com/v1/meteofrance' },
-  { id: 'dwd_icon', label: 'ICON D2 2km', url: 'https://api.open-meteo.com/v1/dwd-icon' },
-  { id: 'forecast', label: 'Best Match', url: 'https://api.open-meteo.com/v1/forecast' },
+  { id: 'meteofrance', label: 'AROME 1.3km', url: '/api/openmeteo/v1/meteofrance' },
+  { id: 'dwd_icon', label: 'ICON D2 2km', url: '/api/openmeteo/v1/dwd-icon' },
+  { id: 'forecast', label: 'Best Match', url: '/api/openmeteo/v1/forecast' },
 ];
 
 export const QUALITY_COLORS = {

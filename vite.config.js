@@ -7,6 +7,16 @@ export default defineConfig({
     port: 5173,
     open: true,
     proxy: {
+      '/api/openmeteo': {
+        target: 'https://api.open-meteo.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace('/api/openmeteo', ''),
+      },
+      '/api/ensemble': {
+        target: 'https://ensemble-api.open-meteo.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace('/api/ensemble', ''),
+      },
       '/api/dwd': {
         target: 'https://opendata.dwd.de',
         changeOrigin: true,
