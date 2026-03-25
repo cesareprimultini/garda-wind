@@ -6,9 +6,10 @@
  *
  * All calls go through /api/meteonetwork (Vercel proxy) to keep the token server-side.
  *
- * Field units (from API docs):
- *   wind_speed            → km/h
- *   wind_direction_cardinal → degrees
+ * Field units (verified from live data):
+ *   wind_speed            → m/s
+ *   wind_direction        → degrees (164 = SSE)
+ *   wind_direction_cardinal → cardinal text ("SSE")
  *   smlp                  → hPa (sea level pressure)
  *   temperature           → °C
  *   rh                    → % humidity
@@ -32,20 +33,20 @@ async function fetchInterpolated(lat, lon) {
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
 
-  const windKmh = parseFloat(row.wind_speed)  || 0;
-  const gustKmh = parseFloat(row.wind_gust)   || 0;
+  const windMs = parseFloat(row.wind_speed) || 0;
+  const gustMs = parseFloat(row.wind_gust) || 0;
 
   return {
-    temp:       parseFloat(row.temperature)          ?? null,
-    humidity:   parseFloat(row.rh)                   ?? null,
-    mslp:       parseFloat(row.smlp)                 ?? null,
-    windSpeedKn: windKmh / 1.852,
-    windGustKn:  gustKmh > 0 ? gustKmh / 1.852 : null,
-    windDir:    parseFloat(row.wind_direction_cardinal) ?? null,
-    windDirCardinal: row.wind_direction              ?? null,
-    dewPoint:   parseFloat(row.dew_point)            ?? null,
-    distance:   parseFloat(row.distance)             ?? null, // km to nearest real station
-    source:     'MeteoNetwork',
+    temp:           parseFloat(row.temperature) ?? null,
+    humidity:       parseFloat(row.rh)          ?? null,
+    mslp:           parseFloat(row.smlp)        ?? null,
+    windSpeedKn:    windMs * 1.94384,                      // m/s → knots
+    windGustKn:     gustMs > 0 ? gustMs * 1.94384 : null,
+    windDir:        parseFloat(row.wind_direction) ?? null, // degrees
+    windDirCardinal: row.wind_direction_cardinal  ?? null,  // "SSE" etc.
+    dewPoint:       parseFloat(row.dew_point)     ?? null,
+    distance:       parseFloat(row.distance)      ?? null,  // km to nearest real station
+    source:         'MeteoNetwork',
   };
 }
 
