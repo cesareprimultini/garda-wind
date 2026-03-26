@@ -453,7 +453,7 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     // If iparassiti is available, make a single-point history
     if (iparassitiObs) liveHistory = [iparassitiObs];
     else if (malcesineObs) liveHistory = [{ ...malcesineObs }];
-  } else if (stationId === 'bardolino' || stationId === 'leganavale') {
+  } else if (stationId === 'bardolino') {
     if (legaNavaleObs) liveHistory = [{ ...legaNavaleObs }];
   } else if (stationId === 'peschiera') {
     if (arpavObs) liveHistory = [{ ...arpavObs }];

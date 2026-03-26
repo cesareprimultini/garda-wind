@@ -2,9 +2,7 @@ export const STATIONS = [
   { id: 'torbole',    name: 'Torbole',          lat: 45.8689, lon: 10.8734, mnCode: 'TRN173', mtCode: 'T0193', ipLoc: 'torbole'   },
   { id: 'riva',       name: 'Riva del Garda',   lat: 45.8864, lon: 10.8389, mnCode: 'TRN033', mtCode: 'T0298', ipLoc: null        },
   { id: 'malcesine',  name: 'Malcesine',        lat: 45.7609, lon: 10.8118, mnCode: null,      mtCode: null,    ipLoc: 'malcesine' },
-  { id: 'campione',   name: 'Campione',         lat: 45.7822, lon: 10.7634, mnCode: null,      mtCode: null,    ipLoc: null        },
-  { id: 'bardolino',  name: 'Bardolino',        lat: 45.5494, lon: 10.7272, mnCode: 'VNT310', mtCode: null,    ipLoc: null        },
-  { id: 'leganavale', name: 'Lega Navale Garda',lat: 45.5775, lon: 10.7017, mnCode: null,      mtCode: null,    ipLoc: null        },
+  { id: 'bardolino',  name: 'Bardolino',        lat: 45.5775, lon: 10.7017, mnCode: 'VNT310', mtCode: null,    ipLoc: null        },
   { id: 'peschiera',  name: 'Peschiera',        lat: 45.4394, lon: 10.6926, mnCode: 'VNT259', mtCode: null,    ipLoc: null,       arpavCode: 300005960 },
 ];
 

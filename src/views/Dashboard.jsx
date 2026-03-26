@@ -158,7 +158,7 @@ export default function Dashboard({ data, loading, error, stationId }) {
   //   torbole    → Meteotrentino T0193 (5-min official) > iparassiti (2-min) > MeteoNetwork > model
   //   riva       → Meteotrentino T0298 (5-min official) > MeteoNetwork > model
   //   malcesine  → iparassiti (5-min, same hardware) > Fraglia Vela MeteoProject > MeteoNetwork > model
-  //   bardolino/leganavale → Lega Navale Davis VP2 > MeteoNetwork > model
+  //   bardolino → Lega Navale Davis VP2 > MeteoNetwork > model
   //   others     → MeteoNetwork > model
   const mnObs       = data?.observed?.meteoNetwork?.[stationId] ?? null;
   const ipObs       = data?.observed?.iparassitiWind ?? null;
@@ -167,7 +167,7 @@ export default function Dashboard({ data, loading, error, stationId }) {
     riva:       data?.observed?.rivaWind    ?? mnObs,
     malcesine:  ipObs ?? data?.observed?.malcesineWind ?? mnObs,
     bardolino:  data?.observed?.bardolinoWind ?? mnObs,
-    leganavale: data?.observed?.bardolinoWind ?? mnObs,
+    peschiera:  data?.observed?.arpavWind    ?? mnObs,
   };
   const liveWind  = LIVE_SOURCES[stationId] ?? mnObs;
   const isLive    = liveWind !== null;
@@ -177,7 +177,7 @@ export default function Dashboard({ data, loading, error, stationId }) {
   const windSpeed = liveWind?.windSpeedKn ?? current?.windSpeed ?? null;
   const windGusts = liveWind?.windGustKn  ?? current?.windGusts ?? null;
   const windDir   = liveWind?.windDir     ?? current?.windDir   ?? null;
-  const isLegaNavale = stationId === 'bardolino' || stationId === 'leganavale';
+  const isLegaNavale = stationId === 'bardolino';
   const liveMslp  =
     (isLegaNavale ? data?.observed?.bardolinoMslp : null) ??
     (stationId === 'malcesine' ? data?.observed?.malcesineWind?.mslp : null) ??
