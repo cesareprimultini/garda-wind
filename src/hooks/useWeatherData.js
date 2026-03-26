@@ -55,6 +55,7 @@ export function useWeatherData(stationId, modelId) {
         mtRivaObs,
         iparassitiObs,
         arpavObs,
+        monteBaldoObs,
         usedModelId,
       } = await fetchAllData(stationId, modelId);
 
@@ -74,6 +75,7 @@ export function useWeatherData(stationId, modelId) {
         mtRivaObs,
         iparassitiObs,
         arpavObs,
+        monteBaldoObs,
         stationId,
       });
 

@@ -164,6 +164,8 @@ export async function fetchAllData(stationId, modelId) {
     iparassitiResult,
     // New: ARPAV Veneto for the current station (if it has an arpavCode)
     arpavResult,
+    // Monte Baldo (1756m) — always fetch; synoptic Pelér early-warning indicator
+    monteBaldoResult,
   ] = await Promise.allSettled([
     fetchStationData(station.lat, station.lon, modelId),
     fetchPressureNode(PRESSURE_NODES.bolzano.lat,   PRESSURE_NODES.bolzano.lon),
@@ -188,6 +190,8 @@ export async function fetchAllData(stationId, modelId) {
     ipLoc ? fetchIparassiti(ipLoc) : Promise.resolve(null),
     // ARPAV for the selected station, if it has an arpavCode (Peschiera)
     arpavCode ? fetchARPAV(arpavCode, `ARPAV ${station.name}`) : Promise.resolve(null),
+    // Monte Baldo — ARPAV station 300001965, 1756m on the ridge above the lake
+    fetchARPAV(300001965, 'Monte Baldo 1756m'),
   ]);
 
   if (stationResult.status === 'rejected') throw stationResult.reason;
@@ -216,6 +220,7 @@ export async function fetchAllData(stationId, modelId) {
   logFail('Meteotrentino T0298',mtRivaResult);
   logFail('iparassiti',         iparassitiResult);
   logFail('ARPAV',              arpavResult);
+  logFail('Monte Baldo',        monteBaldoResult);
 
   return {
     stationRaw,
@@ -239,6 +244,7 @@ export async function fetchAllData(stationId, modelId) {
     mtRivaObs:         mtRivaResult.status        === 'fulfilled' ? mtRivaResult.value        : null,
     iparassitiObs:     iparassitiResult.status    === 'fulfilled' ? iparassitiResult.value    : null,
     arpavObs:          arpavResult.status         === 'fulfilled' ? arpavResult.value         : null,
+    monteBaldoObs:     monteBaldoResult.status    === 'fulfilled' ? monteBaldoResult.value    : null,
   };
 }
 

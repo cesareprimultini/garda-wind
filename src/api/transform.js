@@ -88,6 +88,7 @@ function calcEnsembleDp(bolzanoValues, ghediValues) {
  * @param {object|null} opts.mtRivaObs        - Meteotrentino T0298 Riva: { latest, history[] }
  * @param {object|null} opts.iparassitiObs    - iparassiti.com for current station (latest only)
  * @param {object|null} opts.arpavObs         - ARPAV Veneto station (Peschiera)
+ * @param {object|null} opts.monteBaldoObs    - ARPAV Monte Baldo 1756m (synoptic Pelér indicator)
  * @param {string}      [opts.stationId]      - currently selected station id (for liveHistory routing)
  */
 export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
@@ -107,6 +108,7 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     mtRivaObs        = null,
     iparassitiObs    = null,
     arpavObs         = null,
+    monteBaldoObs    = null,
     stationId        = null,
   } = opts;
 
@@ -435,6 +437,8 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     iparassitiWind: iparassitiObs ?? null,
     // ARPAV Veneto official station (Peschiera)
     arpavWind: arpavObs ?? null,
+    // Monte Baldo 1756m — synoptic altitude wind (Pelér early-warning)
+    monteBaldoWind: monteBaldoObs ?? null,
   };
 
   // ─── Live history (newest-first array of readings for the current station) ─────

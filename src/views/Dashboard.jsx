@@ -2,7 +2,7 @@ import HeroWindCard from '../components/cards/HeroWindCard.jsx';
 import DeltaPressureCard from '../components/cards/DeltaPressureCard.jsx';
 import SportGearGrid from '../components/cards/SportGearGrid.jsx';
 import HourlyTimeline from '../components/forecast/HourlyTimeline.jsx';
-import { detectRegime, getQuality, getKiteSize } from '../utils/windPhysics.js';
+import { detectRegime, getQuality, getKiteSize, degreesToCompass } from '../utils/windPhysics.js';
 
 // ─── tiny section header ─────────────────────────────────────────
 function SectionLabel({ children, right }) {
@@ -43,6 +43,51 @@ function MiniStat({ label, value, unit, color, accent }) {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Monte Baldo altitude indicator ──────────────────────────────
+function MonteBaldoRow({ obs }) {
+  if (!obs) return null;
+  const kn = obs.windSpeedKn != null ? Math.round(obs.windSpeedKn) : null;
+  const dir = obs.windDir != null ? degreesToCompass(obs.windDir) : null;
+  // Color: strong NE/ENE (classic Pelér aloft) → blue; calm → muted
+  const isPeler = obs.windDir != null && (obs.windDir >= 0 && obs.windDir <= 90 || obs.windDir >= 315);
+  const isStrong = kn != null && kn >= 15;
+  const color = isStrong && isPeler ? '#5090ff' : isStrong ? '#f5a428' : 'var(--text-3)';
+  return (
+    <div style={{
+      marginTop: 6,
+      padding: '6px 10px',
+      borderRadius: 8,
+      background: 'rgba(255,255,255,0.02)',
+      border: '1px solid rgba(255,255,255,0.05)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    }}>
+      <span style={{ fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.04em' }}>
+        ▲ Monte Baldo 1756m
+      </span>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+        {kn != null ? (
+          <>
+            <span className="font-num" style={{ fontSize: 13, fontWeight: 700, color, lineHeight: 1 }}>{kn}</span>
+            <span style={{ fontSize: 8, color: 'var(--text-3)' }}>kn</span>
+            {dir && <span style={{ fontSize: 9, color, marginLeft: 2 }}>{dir}</span>}
+          </>
+        ) : (
+          <span style={{ fontSize: 9, color: 'var(--text-3)' }}>—</span>
+        )}
+      </span>
+      {isStrong && isPeler && (
+        <span style={{
+          fontSize: 8, color: '#5090ff',
+          background: 'rgba(80,144,255,0.1)', border: '1px solid rgba(80,144,255,0.2)',
+          borderRadius: 3, padding: '1px 5px', letterSpacing: '0.05em',
+        }}>Pelér aloft</span>
+      )}
     </div>
   );
 }
@@ -195,6 +240,7 @@ export default function Dashboard({ data, loading, error, stationId }) {
       <SectionLabel right="Bolzano − Ghedi">Lake Garda</SectionLabel>
       <div style={{ marginTop: 6, marginBottom: 14 }}>
         <DeltaPressureCard dp={dp} hourly={hourly} regime={regime} />
+        <MonteBaldoRow obs={data?.observed?.monteBaldoWind ?? null} />
       </div>
 
       {/* ═══════════════════════════════════════════════════ */}
