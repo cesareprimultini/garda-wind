@@ -51,6 +51,9 @@ export function useWeatherData(stationId, modelId) {
         legaNavaleObs,
         meteoNetworkObs,
         malcesineObs,
+        mtTorboleObs,
+        mtRivaObs,
+        iparassitiObs,
         usedModelId,
       } = await fetchAllData(stationId, modelId);
 
@@ -66,6 +69,10 @@ export function useWeatherData(stationId, modelId) {
         legaNavaleObs,
         meteoNetworkObs,
         malcesineObs,
+        mtTorboleObs,
+        mtRivaObs,
+        iparassitiObs,
+        stationId,
       });
 
       saveToCache(stationId, modelId, {

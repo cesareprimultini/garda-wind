@@ -109,15 +109,20 @@ export default function Dashboard({ data, loading, error, stationId }) {
   const cloud    = nowEntry?.cloud ?? null;
 
   // ── Live observed data (per-station) ──────────────────────────
-  // Priority (per station):
+  // Priority (newest / most reliable first):
+  //   torbole    → Meteotrentino T0193 (5-min official) > iparassiti (2-min) > MeteoNetwork > model
+  //   riva       → Meteotrentino T0298 (5-min official) > MeteoNetwork > model
+  //   malcesine  → iparassiti (5-min, same hardware) > Fraglia Vela MeteoProject > MeteoNetwork > model
   //   bardolino/leganavale → Lega Navale Davis VP2 > MeteoNetwork > model
-  //   malcesine            → Fraglia Vela MeteoProject Davis VP2 > MeteoNetwork > model
-  //   others               → MeteoNetwork real station > model
-  const mnObs = data?.observed?.meteoNetwork?.[stationId] ?? null;
+  //   others     → MeteoNetwork > model
+  const mnObs       = data?.observed?.meteoNetwork?.[stationId] ?? null;
+  const ipObs       = data?.observed?.iparassitiWind ?? null;
   const LIVE_SOURCES = {
+    torbole:    data?.observed?.torboleWind ?? ipObs ?? mnObs,
+    riva:       data?.observed?.rivaWind    ?? mnObs,
+    malcesine:  ipObs ?? data?.observed?.malcesineWind ?? mnObs,
     bardolino:  data?.observed?.bardolinoWind ?? mnObs,
     leganavale: data?.observed?.bardolinoWind ?? mnObs,
-    malcesine:  data?.observed?.malcesineWind ?? mnObs,
   };
   const liveWind  = LIVE_SOURCES[stationId] ?? mnObs;
   const isLive    = liveWind !== null;
@@ -142,6 +147,15 @@ export default function Dashboard({ data, loading, error, stationId }) {
 
   // Compose a current-shaped object for child components
   const currentDisplay = { windSpeed, windGusts, windDir, pressure, temp };
+
+  // ── Model vs live delta ──────────────────────────────────────
+  // Show only when we have both live and model wind at the same time.
+  const modelSpeed  = current?.windSpeed ?? null;
+  const liveDelta   = (isLive && modelSpeed !== null && windSpeed !== null)
+    ? Math.round(windSpeed - modelSpeed)
+    : null;
+  const deltaAbs    = liveDelta !== null ? Math.abs(liveDelta) : 0;
+  const deltaSignif = deltaAbs >= 4; // only flag when difference is 4+ kn
 
   // Colour hints for mini stats
   const pressureColor = pressure !== null
@@ -194,9 +208,20 @@ export default function Dashboard({ data, loading, error, stationId }) {
                 color: '#0dcfa8', borderRadius: 4, padding: '1px 5px',
                 fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
               }}>LIVE</span>
-              <span>{liveLabel}</span>
+              <span style={{ color: 'var(--text-3)', fontSize: 10 }}>{liveLabel}</span>
+              {deltaSignif && (
+                <span style={{
+                  background: deltaAbs >= 8 ? 'rgba(244,63,94,0.12)' : 'rgba(245,164,40,0.1)',
+                  border: `1px solid ${deltaAbs >= 8 ? 'rgba(244,63,94,0.3)' : 'rgba(245,164,40,0.25)'}`,
+                  color: deltaAbs >= 8 ? '#f43f5e' : '#f5a428',
+                  borderRadius: 4, padding: '1px 5px',
+                  fontSize: 9, fontWeight: 600,
+                }}>
+                  model {liveDelta > 0 ? `−${deltaAbs}` : `+${deltaAbs}`} kn
+                </span>
+              )}
             </span>
-          : 'model data'
+          : <span style={{ color: 'var(--text-3)', fontSize: 10 }}>model only</span>
       }>Station</SectionLabel>
       <div
         style={{

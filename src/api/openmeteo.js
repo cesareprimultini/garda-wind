@@ -4,6 +4,8 @@ import { fetchZAMGInnsbruck } from './zamg.js';
 import { fetchLegaNavaleGarda } from './legaNavale.js';
 import { fetchMeteoNetworkAll } from './meteonetwork.js';
 import { fetchMalcesineObs } from './malcesine.js';
+import { fetchMeteotrentino } from './meteotrentino.js';
+import { fetchIparassiti } from './iparassiti.js';
 
 const ENSEMBLE_API = '/api/ensemble?_path=v1/ensemble';
 
@@ -133,6 +135,10 @@ export async function fetchAllData(stationId, modelId) {
   const station = STATIONS.find(s => s.id === stationId);
   if (!station) throw new Error(`Unknown station: ${stationId}`);
 
+  // Meteotrentino codes for the selected station (if any)
+  const mtCode = station.mtCode ?? null;
+  const ipLoc  = station.ipLoc  ?? null;
+
   const [
     stationResult,
     bolzanoResult,
@@ -148,6 +154,12 @@ export async function fetchAllData(stationId, modelId) {
     legaNavaleResult,
     meteoNetworkResult,
     malcesineResult,
+    // New: Meteotrentino T0193 (Torbole) — always fetch for ΔP context + live history
+    mtTorboleResult,
+    // New: Meteotrentino T0298 (Riva) — always fetch
+    mtRivaResult,
+    // New: iparassiti.com for the current station (if it has an ipLoc)
+    iparassitiResult,
   ] = await Promise.allSettled([
     fetchStationData(station.lat, station.lon, modelId),
     fetchPressureNode(PRESSURE_NODES.bolzano.lat,   PRESSURE_NODES.bolzano.lon),
@@ -162,8 +174,14 @@ export async function fetchAllData(stationId, modelId) {
     fetchZAMGInnsbruck(),
     fetchLegaNavaleGarda(),
     fetchMeteoNetworkAll([station]),
-    // Only fetch Malcesine live data when viewing that station
+    // Malcesine MeteoProject — kept as fallback when iparassiti unavailable
     stationId === 'malcesine' ? fetchMalcesineObs() : Promise.resolve(null),
+    // Meteotrentino Torbole (T0193) — 5-min, 6h history, always useful
+    fetchMeteotrentino('T0193', 6),
+    // Meteotrentino Riva (T0298) — 5-min, always useful
+    fetchMeteotrentino('T0298', 6),
+    // iparassiti for the selected station, if it has a loc mapping
+    ipLoc ? fetchIparassiti(ipLoc) : Promise.resolve(null),
   ]);
 
   if (stationResult.status === 'rejected') throw stationResult.reason;
@@ -175,19 +193,22 @@ export async function fetchAllData(stationId, modelId) {
       console.warn(`[OpenMeteo] ${name} failed:`, result.reason?.message);
     }
   };
-  logFail('Bolzano',           bolzanoResult);
-  logFail('Ghedi',             ghediResult);
-  logFail('Trento',            trentoResult);
-  logFail('Verona',            veronaResult);
-  logFail('Innsbruck',         innsbruckResult);
-  logFail('Bolzano ensemble',  bolzanoEnsResult);
-  logFail('Ghedi ensemble',    ghediEnsResult);
-  logFail('DWD Ghedi obs',     dwdGhediResult);
-  logFail('DWD Innsbruck obs', dwdInnsbruckResult);
-  logFail('ZAMG Innsbruck obs',zamgInnsbruckResult);
-  logFail('Lega Navale Garda', legaNavaleResult);
-  logFail('MeteoNetwork',      meteoNetworkResult);
-  logFail('Malcesine obs',     malcesineResult);
+  logFail('Bolzano',            bolzanoResult);
+  logFail('Ghedi',              ghediResult);
+  logFail('Trento',             trentoResult);
+  logFail('Verona',             veronaResult);
+  logFail('Innsbruck',          innsbruckResult);
+  logFail('Bolzano ensemble',   bolzanoEnsResult);
+  logFail('Ghedi ensemble',     ghediEnsResult);
+  logFail('DWD Ghedi obs',      dwdGhediResult);
+  logFail('DWD Innsbruck obs',  dwdInnsbruckResult);
+  logFail('ZAMG Innsbruck obs', zamgInnsbruckResult);
+  logFail('Lega Navale Garda',  legaNavaleResult);
+  logFail('MeteoNetwork',       meteoNetworkResult);
+  logFail('Malcesine obs',      malcesineResult);
+  logFail('Meteotrentino T0193',mtTorboleResult);
+  logFail('Meteotrentino T0298',mtRivaResult);
+  logFail('iparassiti',         iparassitiResult);
 
   return {
     stationRaw,
@@ -206,6 +227,10 @@ export async function fetchAllData(stationId, modelId) {
     legaNavaleObs:     legaNavaleResult.status    === 'fulfilled' ? legaNavaleResult.value    : null,
     meteoNetworkObs:   meteoNetworkResult.status  === 'fulfilled' ? meteoNetworkResult.value  : {},
     malcesineObs:      malcesineResult.status     === 'fulfilled' ? malcesineResult.value     : null,
+    // New live sources
+    mtTorboleObs:      mtTorboleResult.status     === 'fulfilled' ? mtTorboleResult.value     : null,
+    mtRivaObs:         mtRivaResult.status        === 'fulfilled' ? mtRivaResult.value        : null,
+    iparassitiObs:     iparassitiResult.status    === 'fulfilled' ? iparassitiResult.value    : null,
   };
 }
 

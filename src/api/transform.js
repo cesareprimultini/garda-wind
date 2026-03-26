@@ -84,6 +84,10 @@ function calcEnsembleDp(bolzanoValues, ghediValues) {
  * @param {object|null} opts.legaNavaleObs    - Lega Navale Garda: Davis VP2 on-lake station (Bardolino)
  * @param {object}      opts.meteoNetworkObs  - MeteoNetwork real station: stationId → observed data
  * @param {object|null} opts.malcesineObs     - MeteoProject: Fraglia Vela Malcesine (Davis VP2)
+ * @param {object|null} opts.mtTorboleObs     - Meteotrentino T0193 Torbole: { latest, history[] }
+ * @param {object|null} opts.mtRivaObs        - Meteotrentino T0298 Riva: { latest, history[] }
+ * @param {object|null} opts.iparassitiObs    - iparassiti.com for current station (latest only)
+ * @param {string}      [opts.stationId]      - currently selected station id (for liveHistory routing)
  */
 export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
   const {
@@ -98,6 +102,10 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     legaNavaleObs    = null,
     meteoNetworkObs  = {},
     malcesineObs     = null,
+    mtTorboleObs     = null,
+    mtRivaObs        = null,
+    iparassitiObs    = null,
+    stationId        = null,
   } = opts;
 
   const now = new Date();
@@ -405,7 +413,7 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     bardolinoSource: legaNavaleObs ? 'Lega Navale Garda' : null,
     // MeteoNetwork real station — keyed by stationId, null per station if unavailable
     meteoNetwork: meteoNetworkObs,
-    // Fraglia Vela Malcesine — Davis VP2 on-lake station
+    // Fraglia Vela Malcesine — Davis VP2 on-lake station (MeteoProject, kept as fallback)
     malcesineWind: malcesineObs ? {
       windSpeedKn:     malcesineObs.windSpeedKn,
       windGustKn:      malcesineObs.windGustKn,
@@ -418,7 +426,28 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
       source:          malcesineObs.source,
     } : null,
     malcesineSource: malcesineObs ? 'Fraglia Vela Malcesine' : null,
+    // Meteotrentino official stations (latest reading)
+    torboleWind: mtTorboleObs?.latest ?? null,   // T0193 — 5-min, official
+    rivaWind:    mtRivaObs?.latest    ?? null,   // T0298 — 5-min, official
+    // iparassiti.com Davis VP2 (current station, if mapped)
+    iparassitiWind: iparassitiObs ?? null,
   };
+
+  // ─── Live history (newest-first array of readings for the current station) ─────
+  // Used in ForecastPanel to overlay live dots on the model wind chart.
+  // Priority: Meteotrentino history (has 6h of 5-min data) > empty
+  let liveHistory = [];
+  if (stationId === 'torbole' || stationId === 'riva') {
+    const src = stationId === 'torbole' ? mtTorboleObs : mtRivaObs;
+    liveHistory = src?.history ?? [];
+  } else if (stationId === 'malcesine') {
+    // iparassiti returns only latest; MeteoProject also only latest — no history available
+    // If iparassiti is available, make a single-point history
+    if (iparassitiObs) liveHistory = [iparassitiObs];
+    else if (malcesineObs) liveHistory = [{ ...malcesineObs }];
+  } else if (stationId === 'bardolino' || stationId === 'leganavale') {
+    if (legaNavaleObs) liveHistory = [{ ...legaNavaleObs }];
+  }
 
   return {
     hourly,
@@ -433,5 +462,6 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     currentDpInterp,
     currentConfidenceMod,
     observed,
+    liveHistory,
   };
 }

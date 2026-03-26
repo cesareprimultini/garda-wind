@@ -55,6 +55,25 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => '/dati/rapidjson.php?loc=malcesine',
       },
+      '/api/meteotrentino': {
+        target: 'https://dati.meteotrentino.it',
+        changeOrigin: true,
+        rewrite: (path) => {
+          const url = new URL(path, 'http://localhost');
+          const stazione = url.searchParams.get('stazione') || 'T0193';
+          const h = url.searchParams.get('h') || '6';
+          return `/service.asmx/datiRealtimeUnaStazione?stazione=${stazione}&h=${h}`;
+        },
+      },
+      '/api/iparassiti': {
+        target: 'https://www.iparassiti.com',
+        changeOrigin: true,
+        rewrite: (path) => {
+          const url = new URL(path, 'http://localhost');
+          const loc = url.searchParams.get('loc') || 'torbole';
+          return `/ane/${loc}/json/weewx_data.json`;
+        },
+      },
       '/api/meteonetwork': {
         target: 'https://api.meteonetwork.it',
         changeOrigin: true,

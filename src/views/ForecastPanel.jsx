@@ -3,6 +3,7 @@ import { MODELS } from '../utils/constants.js';
 import WindSpeedChart from '../components/charts/WindSpeedChart.jsx';
 import DeltaPressureChart from '../components/charts/DeltaPressureChart.jsx';
 import DualPressureChart from '../components/charts/DualPressureChart.jsx';
+import WindHeatmap from '../components/charts/WindHeatmap.jsx';
 import DayOutlookGrid from '../components/forecast/DayOutlookGrid.jsx';
 import { ChartSkeleton } from '../components/shared/Skeleton.jsx';
 
@@ -44,11 +45,12 @@ function PillGroup({ options, value, onChange }) {
  * Forecast panel — charts + 7-day outlook + Meteotrentino meteograms
  * Props: { data, loading, selectedModel, onModelChange }
  */
-export default function ForecastPanel({ data, loading, selectedModel, onModelChange }) {
+export default function ForecastPanel({ data, loading, selectedModel, onModelChange, selectedStation }) {
   const [timeRange, setTimeRange]     = useState('48h');
   const [imgErrors, setImgErrors]     = useState({});
 
-  const hourly = data?.hourly ?? [];
+  const hourly      = data?.hourly      ?? [];
+  const liveHistory = data?.liveHistory ?? [];
 
   const timeRangeOpts = [
     { value: '24h', label: '24h' },
@@ -103,16 +105,24 @@ export default function ForecastPanel({ data, loading, selectedModel, onModelCha
           </>
         ) : (
           <>
-            {/* ΔP chart — THE key chart, first */}
+            {/* Wind session heatmap — THE "when to go" view */}
+            <div>
+              <SectionLabel right="model · tap cell for kn">Session Windows</SectionLabel>
+              <WindHeatmap data={hourly} days={7} />
+            </div>
+
+            {/* ΔP chart */}
             <div>
               <SectionLabel right="Bolzano − Ghedi">Pressure Differential</SectionLabel>
               <DeltaPressureChart data={hourly} timeRange={timeRange} onTimeRangeChange={setTimeRange} />
             </div>
 
-            {/* Wind speed */}
+            {/* Wind speed + live overlay */}
             <div>
-              <SectionLabel>Wind Speed & Gusts</SectionLabel>
-              <WindSpeedChart data={hourly} timeRange={timeRange} />
+              <SectionLabel right={liveHistory.length > 0 ? 'model + live observed' : 'model'}>
+                Wind Speed & Gusts
+              </SectionLabel>
+              <WindSpeedChart data={hourly} timeRange={timeRange} liveHistory={liveHistory} />
             </div>
 
             {/* Dual pressure */}
