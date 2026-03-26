@@ -31,6 +31,11 @@ export default defineConfig({
           });
         },
       },
+      '/api/zamg': {
+        target: 'https://dataset.api.hub.geosphere.at',
+        changeOrigin: true,
+        rewrite: (path) => path.replace('/api/zamg', '/v1/station/current/tawes-v1-10min'),
+      },
       '/api/dwd': {
         target: 'https://opendata.dwd.de',
         changeOrigin: true,

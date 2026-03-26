@@ -14,7 +14,7 @@
  *   TL    — Air temperature (°C)
  */
 
-const TAWES_BASE = 'https://dataset.api.hub.geosphere.at/v1/station/current/tawes-v1-10min';
+const TAWES_BASE = '/api/zamg';
 const INNSBRUCK_STATION = '11320';
 const PARAMS = 'PRED,P,FF,DD,FFX,TL';
 
@@ -41,7 +41,10 @@ export async function fetchZAMGInnsbruck() {
   });
 
   const url = `${TAWES_BASE}?${params.toString()}`;
-  const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  const resp = await fetch(url, {
+    headers: { 'User-Agent': 'GardaWind/1.0' },
+    signal: AbortSignal.timeout(10000),
+  });
   if (!resp.ok) throw new Error(`ZAMG TAWES HTTP ${resp.status}`);
 
   const json = await resp.json();
