@@ -87,6 +87,7 @@ function calcEnsembleDp(bolzanoValues, ghediValues) {
  * @param {object|null} opts.mtTorboleObs     - Meteotrentino T0193 Torbole: { latest, history[] }
  * @param {object|null} opts.mtRivaObs        - Meteotrentino T0298 Riva: { latest, history[] }
  * @param {object|null} opts.iparassitiObs    - iparassiti.com for current station (latest only)
+ * @param {object|null} opts.arpavObs         - ARPAV Veneto station (Peschiera)
  * @param {string}      [opts.stationId]      - currently selected station id (for liveHistory routing)
  */
 export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
@@ -105,6 +106,7 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     mtTorboleObs     = null,
     mtRivaObs        = null,
     iparassitiObs    = null,
+    arpavObs         = null,
     stationId        = null,
   } = opts;
 
@@ -431,6 +433,8 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     rivaWind:    mtRivaObs?.latest    ?? null,   // T0298 — 5-min, official
     // iparassiti.com Davis VP2 (current station, if mapped)
     iparassitiWind: iparassitiObs ?? null,
+    // ARPAV Veneto official station (Peschiera)
+    arpavWind: arpavObs ?? null,
   };
 
   // ─── Live history (newest-first array of readings for the current station) ─────
@@ -447,6 +451,8 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     else if (malcesineObs) liveHistory = [{ ...malcesineObs }];
   } else if (stationId === 'bardolino' || stationId === 'leganavale') {
     if (legaNavaleObs) liveHistory = [{ ...legaNavaleObs }];
+  } else if (stationId === 'peschiera') {
+    if (arpavObs) liveHistory = [{ ...arpavObs }];
   }
 
   return {

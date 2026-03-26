@@ -5,7 +5,7 @@ export const STATIONS = [
   { id: 'campione',   name: 'Campione',         lat: 45.7822, lon: 10.7634, mnCode: null,      mtCode: null,    ipLoc: null        },
   { id: 'bardolino',  name: 'Bardolino',        lat: 45.5494, lon: 10.7272, mnCode: 'VNT310', mtCode: null,    ipLoc: null        },
   { id: 'leganavale', name: 'Lega Navale Garda',lat: 45.5775, lon: 10.7017, mnCode: null,      mtCode: null,    ipLoc: null        },
-  { id: 'peschiera',  name: 'Peschiera',        lat: 45.4394, lon: 10.6926, mnCode: 'VNT259', mtCode: null,    ipLoc: null        },
+  { id: 'peschiera',  name: 'Peschiera',        lat: 45.4394, lon: 10.6926, mnCode: 'VNT259', mtCode: null,    ipLoc: null,       arpavCode: 300005960 },
 ];
 
 export const PRESSURE_NODES = {

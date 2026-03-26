@@ -74,6 +74,20 @@ export default defineConfig({
           return `/ane/${loc}/json/weewx_data.json`;
         },
       },
+      '/api/arpav': {
+        target: 'https://api.arpa.veneto.it',
+        changeOrigin: true,
+        rewrite: (path) => {
+          const url = new URL(path, 'http://localhost');
+          const codseqst = url.searchParams.get('codseqst') || '';
+          return `/REST/v1/meteo_meteogrammi_tabella?codseqst=${codseqst}`;
+        },
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (compatible; GardaWind/1.0)');
+          });
+        },
+      },
       '/api/meteonetwork': {
         target: 'https://api.meteonetwork.it',
         changeOrigin: true,

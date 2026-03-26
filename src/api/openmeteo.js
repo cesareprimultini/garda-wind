@@ -6,6 +6,7 @@ import { fetchMeteoNetworkAll } from './meteonetwork.js';
 import { fetchMalcesineObs } from './malcesine.js';
 import { fetchMeteotrentino } from './meteotrentino.js';
 import { fetchIparassiti } from './iparassiti.js';
+import { fetchARPAV } from './arpav.js';
 
 const ENSEMBLE_API = '/api/ensemble?_path=v1/ensemble';
 
@@ -136,8 +137,9 @@ export async function fetchAllData(stationId, modelId) {
   if (!station) throw new Error(`Unknown station: ${stationId}`);
 
   // Meteotrentino codes for the selected station (if any)
-  const mtCode = station.mtCode ?? null;
-  const ipLoc  = station.ipLoc  ?? null;
+  const mtCode    = station.mtCode    ?? null;
+  const ipLoc     = station.ipLoc     ?? null;
+  const arpavCode = station.arpavCode ?? null;
 
   const [
     stationResult,
@@ -160,6 +162,8 @@ export async function fetchAllData(stationId, modelId) {
     mtRivaResult,
     // New: iparassiti.com for the current station (if it has an ipLoc)
     iparassitiResult,
+    // New: ARPAV Veneto for the current station (if it has an arpavCode)
+    arpavResult,
   ] = await Promise.allSettled([
     fetchStationData(station.lat, station.lon, modelId),
     fetchPressureNode(PRESSURE_NODES.bolzano.lat,   PRESSURE_NODES.bolzano.lon),
@@ -182,6 +186,8 @@ export async function fetchAllData(stationId, modelId) {
     fetchMeteotrentino('T0298', 6),
     // iparassiti for the selected station, if it has a loc mapping
     ipLoc ? fetchIparassiti(ipLoc) : Promise.resolve(null),
+    // ARPAV for the selected station, if it has an arpavCode (Peschiera)
+    arpavCode ? fetchARPAV(arpavCode, `ARPAV ${station.name}`) : Promise.resolve(null),
   ]);
 
   if (stationResult.status === 'rejected') throw stationResult.reason;
@@ -209,6 +215,7 @@ export async function fetchAllData(stationId, modelId) {
   logFail('Meteotrentino T0193',mtTorboleResult);
   logFail('Meteotrentino T0298',mtRivaResult);
   logFail('iparassiti',         iparassitiResult);
+  logFail('ARPAV',              arpavResult);
 
   return {
     stationRaw,
@@ -231,6 +238,7 @@ export async function fetchAllData(stationId, modelId) {
     mtTorboleObs:      mtTorboleResult.status     === 'fulfilled' ? mtTorboleResult.value     : null,
     mtRivaObs:         mtRivaResult.status        === 'fulfilled' ? mtRivaResult.value        : null,
     iparassitiObs:     iparassitiResult.status    === 'fulfilled' ? iparassitiResult.value    : null,
+    arpavObs:          arpavResult.status         === 'fulfilled' ? arpavResult.value         : null,
   };
 }
 
