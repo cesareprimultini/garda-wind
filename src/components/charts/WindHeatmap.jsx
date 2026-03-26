@@ -182,6 +182,10 @@ export default function WindHeatmap({ data = [], hours = 168 }) {
           const rColor   = REGIME_COLORS[entry.regime] ?? REGIME_COLORS.variable;
           const hasWind  = (entry.windSpeed ?? 0) >= 8;
 
+          // Ensemble uncertainty: low agreement = uncertain forecast
+          const ensAgree  = entry.dpAgreementFraction ?? null;
+          const uncertain = ensAgree !== null && ensAgree < 0.65;
+
           // Show time label only every 3 hours, or always on "now"
           const showTime = isNow || hNum % 3 === 0;
 
@@ -192,7 +196,7 @@ export default function WindHeatmap({ data = [], hours = 168 }) {
             <div
               key={entry.time}
               ref={isNow ? nowRef : null}
-              title={`${hNum}:00 · ${entry.windSpeed != null ? Math.round(entry.windSpeed) + ' kn' : '—'} · ${degreesToCompass(entry.windDir ?? 0)} · ${entry.temp != null ? Math.round(entry.temp) + '°C' : ''} · ${QUALITY_LABELS[quality] ?? quality}`}
+              title={`${hNum}:00 · ${entry.windSpeed != null ? Math.round(entry.windSpeed) + ' kn' : '—'} · ${degreesToCompass(entry.windDir ?? 0)} · ${entry.temp != null ? Math.round(entry.temp) + '°C' : ''} · ${QUALITY_LABELS[quality] ?? quality}${uncertain ? ' · uncertain forecast' : ''}`}
               style={{
                 flexShrink: 0,
                 width: 44,
@@ -205,6 +209,8 @@ export default function WindHeatmap({ data = [], hours = 168 }) {
                 background: qualityBg(quality, isPast),
                 border: isNow
                   ? '1.5px solid rgba(255,255,255,0.55)'
+                  : uncertain
+                  ? '1.5px dashed rgba(255,255,255,0.18)'
                   : '1.5px solid rgba(255,255,255,0.04)',
                 opacity: isPast ? 0.55 : 1,
                 marginRight: 2,
@@ -214,7 +220,12 @@ export default function WindHeatmap({ data = [], hours = 168 }) {
               <div style={{
                 width: '100%', height: 5, flexShrink: 0,
                 background: qualityBar(quality, isPast),
-              }} />
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {uncertain && (
+                  <span style={{ fontSize: 5, color: 'rgba(255,255,255,0.7)', lineHeight: 1, userSelect: 'none' }}>~</span>
+                )}
+              </div>
 
               {/* Content area */}
               <div style={{
@@ -289,6 +300,10 @@ export default function WindHeatmap({ data = [], hours = 168 }) {
             <span style={{ fontSize: 8, color: 'var(--text-3)' }}>{label}</span>
           </div>
         ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontSize: 9, color: 'var(--text-3)' }}>- -</span>
+          <span style={{ fontSize: 8, color: 'var(--text-3)' }}>uncertain</span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 'auto' }}>
           <span style={{ fontSize: 8, color: 'var(--text-3)', fontStyle: 'italic' }}>
             AROME 1.3km · ΔP regime

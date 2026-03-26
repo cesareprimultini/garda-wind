@@ -1,0 +1,65 @@
+name: Log Wind Observation
+
+# Runs every 30 minutes — fetches live T0193 observation vs AROME forecast
+# and appends a NDJSON row to data/observations.ndjson on the data-log branch.
+#
+# Cost: ~2 min/run × 48 runs/day = ~96 min/day of the 2,000 free GitHub Actions
+# minutes per month (Ubuntu runners). Well within free tier.
+#
+# The data-log branch is separate from main to keep commit history clean.
+# To analyse: git checkout data-log && python analyse.py data/observations.ndjson
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # every 30 minutes
+  workflow_dispatch:           # allow manual run from GitHub Actions UI
+
+jobs:
+  log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout data-log branch
+        uses: actions/checkout@v4
+        with:
+          ref: data-log
+          # GITHUB_TOKEN is automatically provided — no secrets needed
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch snapshot from live API
+        id: fetch
+        run: |
+          RESPONSE=$(curl -sf --max-time 20 \
+            "https://garda-wind.vercel.app/api/snapshot" \
+            || echo "null")
+          echo "response=$RESPONSE" >> "$GITHUB_OUTPUT"
+
+      - name: Append row and commit
+        if: steps.fetch.outputs.response != 'null'
+        run: |
+          RESPONSE='${{ steps.fetch.outputs.response }}'
+
+          # Validate it looks like JSON (starts with {)
+          if [[ "$RESPONSE" != \{* ]]; then
+            echo "Invalid response, skipping: $RESPONSE"
+            exit 0
+          fi
+
+          mkdir -p data
+          echo "$RESPONSE" >> data/observations.ndjson
+
+          git config user.name  "wind-logger[bot]"
+          git config user.email "wind-logger@garda-wind"
+
+          git add data/observations.ndjson
+
+          # Only commit if there's actually a change
+          if git diff --staged --quiet; then
+            echo "No change to commit"
+            exit 0
+          fi
+
+          TS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ts','?'))" 2>/dev/null || date -u +%Y-%m-%dT%H:%MZ)
+          git commit -m "obs: $TS"
+          git push

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MODELS } from '../utils/constants.js';
 import WindSpeedChart from '../components/charts/WindSpeedChart.jsx';
 import DeltaPressureChart from '../components/charts/DeltaPressureChart.jsx';
@@ -48,9 +48,21 @@ function PillGroup({ options, value, onChange }) {
 export default function ForecastPanel({ data, loading, selectedModel, onModelChange, selectedStation }) {
   const [timeRange, setTimeRange]     = useState('48h');
   const [imgErrors, setImgErrors]     = useState({});
+  const [gustCorr, setGustCorr]       = useState(() => {
+    try { return localStorage.getItem('gustCorr') === '1'; } catch { return false; }
+  });
 
-  const hourly      = data?.hourly      ?? [];
+  useEffect(() => {
+    try { localStorage.setItem('gustCorr', gustCorr ? '1' : '0'); } catch {}
+  }, [gustCorr]);
+
+  const hourlyRaw   = data?.hourly      ?? [];
   const liveHistory = data?.liveHistory ?? [];
+
+  // Apply +5 kn gust correction (local Garda lake-effect adjustment)
+  const hourly = gustCorr
+    ? hourlyRaw.map(h => ({ ...h, windGusts: h.windGusts != null ? h.windGusts + 5 : null }))
+    : hourlyRaw;
 
   const timeRangeOpts = [
     { value: '24h', label: '24h' },
@@ -82,7 +94,17 @@ export default function ForecastPanel({ data, loading, selectedModel, onModelCha
           value={selectedModel}
           onChange={onModelChange}
         />
-        <PillGroup options={timeRangeOpts} value={timeRange} onChange={setTimeRange} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <PillGroup options={timeRangeOpts} value={timeRange} onChange={setTimeRange} />
+          <button
+            onClick={() => setGustCorr(v => !v)}
+            title="Add +5 kn to model gusts — local Garda lake-effect correction"
+            className={`pill ${gustCorr ? 'pill-active' : ''}`}
+            style={{ fontSize: 11, padding: '3px 10px', opacity: gustCorr ? 1 : 0.55 }}
+          >
+            +5 kn gusts
+          </button>
+        </div>
       </div>
 
       {/* Scrollable content */}
