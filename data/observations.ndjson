@@ -2,3 +2,4 @@
 # Schema: ts, actual_wind_kn, actual_gust_kn, actual_dir, actual_temp, actual_time, arome_wind_kn, arome_gust_kn, arome_dir, dp_hpa, regime, ens_agreement
 # Started: 2026-03-26
 {"ts":"2026-03-26T14:00Z","actual_wind_kn":9.330432,"actual_gust_kn":24.686767999999997,"actual_dir":30,"actual_temp":null,"actual_time":"2026-03-26T14:50:00+01","arome_wind_kn":11,"arome_gust_kn":28,"arome_dir":58,"dp_hpa":4.5,"regime":"ora","ens_agreement":null}
+{"ts":"2026-03-26T15:00Z","actual_wind_kn":9.524816000000001,"actual_gust_kn":24.881152,"actual_dir":37,"actual_temp":null,"actual_time":"2026-03-26T15:50:00+01","arome_wind_kn":9.6,"arome_gust_kn":24.7,"arome_dir":54,"dp_hpa":4.9,"regime":"ora","ens_agreement":null}
