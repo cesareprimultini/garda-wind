@@ -1,43 +1,35 @@
 /**
  * iparassiti.com — Davis Vantage Pro2 stations at Torbole and Malcesine.
- * WeeWX Belchertown skin JSON format, no auth required.
+ * WeeWX Belchertown v5 skin JSON, no auth required.
  *
- * Torbole   (45.878°N, 10.891°E, 73m)  — 2-min update interval
- * Malcesine (45.764°N, 10.810°E, 35m)  — 5-min update interval
+ * Torbole   (45.878°N, 10.891°E, 73m)  — archive_interval ~2 min
+ * Malcesine (45.764°N, 10.810°E, 35m)  — archive_interval ~5 min
  *             (Fraglia Vela hardware — same physical station as MeteoProject endpoint)
  *
- * WeeWX JSON structure (current.* fields):
- *   windSpeed.raw   — m/s instantaneous
- *   windGust.raw    — m/s gust
- *   windDir.raw     — degrees
- *   outTemp.raw     — °C
- *   barometer.raw   — hPa
- *   outHumidity.raw — %
- *   dateTime.raw    — Unix timestamp (seconds)
- *
- * Wind unit: WeeWX defaults to m/s internally; .unit field may say "m/s" or "km/h".
- * We convert to knots (× 1.944 for m/s, ÷ 1.852 for km/h).
+ * Actual current block fields (confirmed from live API):
+ *   epoch              — Unix timestamp seconds (string)
+ *   windspeed          — "4.5 m/s" (string with unit, always m/s)
+ *   windGust_formatted — "13.4" (numeric string, m/s)
+ *   winddir_formatted  — "0" (numeric string, degrees)
+ *   barometer_formatted — "996.0" (numeric string, hPa)
+ *   outTemp_formatted  — "13.0" (numeric string, °C)
+ *   outHumidity        — "26%" (string with %, need to strip)
  */
 
-const MS_TO_KN  = 1.94384;
-const KMH_TO_KN = 1 / 1.852;
+const MS_TO_KN = 1.94384;
 
-function getRaw(field) {
-  if (field == null) return null;
-  const v = typeof field === 'object' ? field.raw : field;
-  return v != null ? parseFloat(v) : null;
+/** Parse "4.5 m/s" → 4.5 */
+function parseValueStr(str) {
+  if (!str || typeof str !== 'string') return null;
+  const v = parseFloat(str);
+  return isNaN(v) ? null : v;
 }
 
-function getUnit(field) {
-  if (field == null) return null;
-  return typeof field === 'object' ? (field.unit ?? null) : null;
-}
-
-function toKnots(value, unit) {
-  if (value == null || isNaN(value)) return null;
-  if (unit === 'km/h' || unit === 'kph') return value * KMH_TO_KN;
-  // default: assume m/s
-  return value * MS_TO_KN;
+/** Parse numeric-only formatted field */
+function parseFmt(val) {
+  if (val == null) return null;
+  const v = parseFloat(val);
+  return isNaN(v) ? null : v;
 }
 
 /**
@@ -53,24 +45,27 @@ export async function fetchIparassiti(loc) {
   if (!resp.ok) throw new Error(`iparassiti proxy HTTP ${resp.status} for ${loc}`);
 
   const json = await resp.json();
-
   const curr = json?.current;
   if (!curr) throw new Error(`iparassiti ${loc}: missing current block`);
 
-  const rawSpeed = getRaw(curr.windSpeed);
-  const rawGust  = getRaw(curr.windGust);
-  const speedUnit = getUnit(curr.windSpeed);
-
-  const ts = getRaw(curr.dateTime);
+  const epoch = parseFmt(curr.epoch ?? curr.datetime_raw);
+  const windSpeedMs = parseValueStr(curr.windspeed);     // "4.5 m/s"
+  const windGustMs  = parseFmt(curr.windGust_formatted); // "13.4"
+  const windDir     = parseFmt(curr.winddir_formatted);  // "0"
+  const mslp        = parseFmt(curr.barometer_formatted);
+  const temp        = parseFmt(curr.outTemp_formatted);
+  // "26%" → strip % and parse
+  const humStr      = typeof curr.outHumidity === 'string' ? curr.outHumidity.replace('%', '') : curr.outHumidity;
+  const humidity    = parseFmt(humStr);
 
   return {
-    time:        ts ? new Date(ts * 1000).toISOString() : new Date().toISOString(),
-    windSpeedKn: toKnots(rawSpeed, speedUnit),
-    windGustKn:  toKnots(rawGust,  speedUnit),
-    windDir:     getRaw(curr.windDir),
-    temp:        getRaw(curr.outTemp),
-    mslp:        getRaw(curr.barometer),
-    humidity:    getRaw(curr.outHumidity),
-    source:      `iparassiti ${loc}`,
+    time:        epoch ? new Date(epoch * 1000).toISOString() : new Date().toISOString(),
+    windSpeedKn: windSpeedMs !== null ? windSpeedMs * MS_TO_KN : null,
+    windGustKn:  windGustMs  !== null ? windGustMs  * MS_TO_KN : null,
+    windDir,
+    temp,
+    mslp,
+    humidity,
+    source: `iparassiti ${loc}`,
   };
 }

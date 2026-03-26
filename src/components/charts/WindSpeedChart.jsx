@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react';
 import {
-  ComposedChart, Area, Line, Scatter, XAxis, YAxis, Tooltip,
+  ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts';
 import { formatTime, getDayName, getRomeHour } from '../../utils/formatters.js';
@@ -55,6 +55,11 @@ const CustomTooltip = ({ active, payload }) => {
           {' '}
           <span className="font-num" style={{ color: '#7a9ab8' }}>{Math.round(d.windGusts)}</span>
           {' kn gusts'}
+        </div>
+      )}
+      {d.liveSpeed != null && (
+        <div style={{ fontSize: 9, color: '#0dcfa8', marginTop: 3, fontWeight: 600 }}>
+          ● {Math.round(d.liveSpeed)} kn live
         </div>
       )}
     </div>
@@ -191,14 +196,25 @@ export default function WindSpeedChart({ data = [], timeRange = '24h', liveHisto
             isAnimationActive={animate} connectNulls
           />
           {hasLive && (
-            <Scatter
+            <Line
+              type="monotone"
               dataKey="liveSpeed"
-              fill="#0dcfa8"
-              stroke="#0a1e2a"
-              strokeWidth={1}
-              r={4}
+              stroke="transparent"
+              strokeWidth={0}
+              dot={(props) => {
+                const { cx, cy, payload } = props;
+                if (payload?.liveSpeed == null) return null;
+                return (
+                  <circle
+                    key={`live-${payload.time}`}
+                    cx={cx} cy={cy} r={4}
+                    fill="#0dcfa8" stroke="#0a1e2a" strokeWidth={1.5}
+                  />
+                );
+              }}
+              activeDot={false}
               isAnimationActive={false}
-              name="Live"
+              connectNulls={false}
             />
           )}
         </ComposedChart>
