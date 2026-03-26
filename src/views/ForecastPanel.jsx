@@ -107,8 +107,8 @@ export default function ForecastPanel({ data, loading, selectedModel, onModelCha
           <>
             {/* Wind session heatmap — THE "when to go" view */}
             <div>
-              <SectionLabel right="model · tap cell for kn">Session Windows</SectionLabel>
-              <WindHeatmap data={hourly} days={7} />
+              <SectionLabel right="scroll →">Session Windows</SectionLabel>
+              <WindHeatmap data={hourly} />
             </div>
 
             {/* ΔP chart */}
