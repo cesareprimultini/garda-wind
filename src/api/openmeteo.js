@@ -3,6 +3,7 @@ import { fetchDWDObserved, DWD_STATIONS } from './dwd.js';
 import { fetchZAMGInnsbruck } from './zamg.js';
 import { fetchLegaNavaleGarda } from './legaNavale.js';
 import { fetchMeteoNetworkAll } from './meteonetwork.js';
+import { fetchMalcesineObs } from './malcesine.js';
 
 const ENSEMBLE_API = '/api/ensemble?_path=v1/ensemble';
 
@@ -146,6 +147,7 @@ export async function fetchAllData(stationId, modelId) {
     zamgInnsbruckResult,
     legaNavaleResult,
     meteoNetworkResult,
+    malcesineResult,
   ] = await Promise.allSettled([
     fetchStationData(station.lat, station.lon, modelId),
     fetchPressureNode(PRESSURE_NODES.bolzano.lat,   PRESSURE_NODES.bolzano.lon),
@@ -160,6 +162,8 @@ export async function fetchAllData(stationId, modelId) {
     fetchZAMGInnsbruck(),
     fetchLegaNavaleGarda(),
     fetchMeteoNetworkAll([station]),
+    // Only fetch Malcesine live data when viewing that station
+    stationId === 'malcesine' ? fetchMalcesineObs() : Promise.resolve(null),
   ]);
 
   if (stationResult.status === 'rejected') throw stationResult.reason;
@@ -183,6 +187,7 @@ export async function fetchAllData(stationId, modelId) {
   logFail('ZAMG Innsbruck obs',zamgInnsbruckResult);
   logFail('Lega Navale Garda', legaNavaleResult);
   logFail('MeteoNetwork',      meteoNetworkResult);
+  logFail('Malcesine obs',     malcesineResult);
 
   return {
     stationRaw,
@@ -199,7 +204,8 @@ export async function fetchAllData(stationId, modelId) {
     dwdInnsbruckObs:   dwdInnsbruckResult.status  === 'fulfilled' ? dwdInnsbruckResult.value  : null,
     zamgInnsbruckObs:  zamgInnsbruckResult.status === 'fulfilled' ? zamgInnsbruckResult.value : null,
     legaNavaleObs:     legaNavaleResult.status    === 'fulfilled' ? legaNavaleResult.value    : null,
-    meteoNetworkObs:   meteoNetworkResult.status === 'fulfilled' ? meteoNetworkResult.value  : {},
+    meteoNetworkObs:   meteoNetworkResult.status  === 'fulfilled' ? meteoNetworkResult.value  : {},
+    malcesineObs:      malcesineResult.status     === 'fulfilled' ? malcesineResult.value     : null,
   };
 }
 

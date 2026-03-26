@@ -50,6 +50,7 @@ export function useWeatherData(stationId, modelId) {
         zamgInnsbruckObs,
         legaNavaleObs,
         meteoNetworkObs,
+        malcesineObs,
         usedModelId,
       } = await fetchAllData(stationId, modelId);
 
@@ -64,6 +65,7 @@ export function useWeatherData(stationId, modelId) {
         zamgInnsbruckObs,
         legaNavaleObs,
         meteoNetworkObs,
+        malcesineObs,
       });
 
       saveToCache(stationId, modelId, {

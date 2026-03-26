@@ -50,6 +50,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => '/leganavalegarda/homepage/blocks/current/updater.php?interval=11',
       },
+      '/api/malcesine': {
+        target: 'http://stazioni.meteoproject.it',
+        changeOrigin: true,
+        rewrite: () => '/dati/rapidjson.php?loc=malcesine',
+      },
       '/api/meteonetwork': {
         target: 'https://api.meteonetwork.it',
         changeOrigin: true,

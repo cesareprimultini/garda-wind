@@ -82,7 +82,8 @@ function calcEnsembleDp(bolzanoValues, ghediValues) {
  * @param {object|null} opts.dwdInnsbruckObs  - DWD observed: Innsbruck airport (11120)
  * @param {object|null} opts.zamgInnsbruckObs - ZAMG TAWES observed: Innsbruck Uni (11320)
  * @param {object|null} opts.legaNavaleObs    - Lega Navale Garda: Davis VP2 on-lake station (Bardolino)
- * @param {object}      opts.meteoNetworkObs  - MeteoNetwork interpolated: stationId → observed data
+ * @param {object}      opts.meteoNetworkObs  - MeteoNetwork real station: stationId → observed data
+ * @param {object|null} opts.malcesineObs     - MeteoProject: Fraglia Vela Malcesine (Davis VP2)
  */
 export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
   const {
@@ -96,6 +97,7 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     zamgInnsbruckObs = null,
     legaNavaleObs    = null,
     meteoNetworkObs  = {},
+    malcesineObs     = null,
   } = opts;
 
   const now = new Date();
@@ -392,17 +394,30 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     bardolinoMslp:   legaNavaleObs?.mslp        ?? null,
     bardolinoTime:   legaNavaleObs?.time         ?? null,
     bardolinoWind:   legaNavaleObs ? {
-      speedKn: legaNavaleObs.windSpeedKn,
-      gustKn:  legaNavaleObs.windGustKn,
-      dir:     legaNavaleObs.windDir,
-      temp:    legaNavaleObs.temp,
-      humidity: legaNavaleObs.humidity,
-      time:    legaNavaleObs.time,
-      source:  legaNavaleObs.source,
+      windSpeedKn: legaNavaleObs.windSpeedKn,
+      windGustKn:  legaNavaleObs.windGustKn,
+      windDir:     legaNavaleObs.windDir,
+      temp:        legaNavaleObs.temp,
+      humidity:    legaNavaleObs.humidity,
+      time:        legaNavaleObs.time,
+      source:      legaNavaleObs.source,
     } : null,
     bardolinoSource: legaNavaleObs ? 'Lega Navale Garda' : null,
-    // MeteoNetwork interpolated — keyed by stationId, null per station if unavailable
+    // MeteoNetwork real station — keyed by stationId, null per station if unavailable
     meteoNetwork: meteoNetworkObs,
+    // Fraglia Vela Malcesine — Davis VP2 on-lake station
+    malcesineWind: malcesineObs ? {
+      windSpeedKn:     malcesineObs.windSpeedKn,
+      windGustKn:      malcesineObs.windGustKn,
+      windDir:         malcesineObs.windDir,
+      windDirCardinal: malcesineObs.windDirCardinal,
+      mslp:            malcesineObs.mslp,
+      temp:            malcesineObs.temp,
+      humidity:        malcesineObs.humidity,
+      time:            malcesineObs.time,
+      source:          malcesineObs.source,
+    } : null,
+    malcesineSource: malcesineObs ? 'Fraglia Vela Malcesine' : null,
   };
 
   return {

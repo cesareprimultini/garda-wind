@@ -109,11 +109,15 @@ export default function Dashboard({ data, loading, error, stationId }) {
   const cloud    = nowEntry?.cloud ?? null;
 
   // ── Live observed data (per-station) ──────────────────────────
-  // Priority: Lega Navale (Bardolino only) > MeteoNetwork interpolated > model
+  // Priority (per station):
+  //   bardolino/leganavale → Lega Navale Davis VP2 > MeteoNetwork > model
+  //   malcesine            → Fraglia Vela MeteoProject Davis VP2 > MeteoNetwork > model
+  //   others               → MeteoNetwork real station > model
   const mnObs = data?.observed?.meteoNetwork?.[stationId] ?? null;
   const LIVE_SOURCES = {
     bardolino:  data?.observed?.bardolinoWind ?? mnObs,
     leganavale: data?.observed?.bardolinoWind ?? mnObs,
+    malcesine:  data?.observed?.malcesineWind ?? mnObs,
   };
   const liveWind  = LIVE_SOURCES[stationId] ?? mnObs;
   const isLive    = liveWind !== null;
@@ -124,7 +128,10 @@ export default function Dashboard({ data, loading, error, stationId }) {
   const windGusts = liveWind?.windGustKn  ?? current?.windGusts ?? null;
   const windDir   = liveWind?.windDir     ?? current?.windDir   ?? null;
   const isLegaNavale = stationId === 'bardolino' || stationId === 'leganavale';
-  const liveMslp  = (isLegaNavale ? data?.observed?.bardolinoMslp : null) ?? mnObs?.mslp ?? null;
+  const liveMslp  =
+    (isLegaNavale ? data?.observed?.bardolinoMslp : null) ??
+    (stationId === 'malcesine' ? data?.observed?.malcesineWind?.mslp : null) ??
+    mnObs?.mslp ?? null;
   const pressure  = (isLive ? liveMslp : null) ?? current?.pressure ?? null;
   const temp      = liveWind?.temp     ?? current?.temp      ?? null;
 
