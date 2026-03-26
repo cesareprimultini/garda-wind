@@ -6,10 +6,10 @@
  *
  * All calls go through /api/meteonetwork (Vercel proxy) to keep the token server-side.
  *
- * Field units (verified from live data):
- *   wind_speed            → m/s
- *   wind_direction        → degrees (164 = SSE)
- *   wind_direction_cardinal → cardinal text ("SSE")
+ * Field units (per swagger.yaml schema):
+ *   wind_speed            → km/h  (swagger: "Wind Speed (km/h)")
+ *   wind_direction        → degrees (live data confirmed: "164" = SSE bearing)
+ *   wind_direction_cardinal → cardinal text ("SSE") — docs example is misleading
  *   smlp                  → hPa (sea level pressure)
  *   temperature           → °C
  *   rh                    → % humidity
@@ -33,15 +33,15 @@ async function fetchInterpolated(lat, lon) {
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
 
-  const windMs = parseFloat(row.wind_speed) || 0;
-  const gustMs = parseFloat(row.wind_gust) || 0;
+  const windKmh = parseFloat(row.wind_speed) || 0;
+  const gustKmh = parseFloat(row.wind_gust) || 0;
 
   return {
     temp:           parseFloat(row.temperature) ?? null,
     humidity:       parseFloat(row.rh)          ?? null,
     mslp:           parseFloat(row.smlp)        ?? null,
-    windSpeedKn:    windMs * 1.94384,                      // m/s → knots
-    windGustKn:     gustMs > 0 ? gustMs * 1.94384 : null,
+    windSpeedKn:    windKmh / 1.852,                       // km/h → knots
+    windGustKn:     gustKmh > 0 ? gustKmh / 1.852 : null,
     windDir:        parseFloat(row.wind_direction) ?? null, // degrees
     windDirCardinal: row.wind_direction_cardinal  ?? null,  // "SSE" etc.
     dewPoint:       parseFloat(row.dew_point)     ?? null,
@@ -58,15 +58,12 @@ async function fetchInterpolated(lat, lon) {
  */
 export async function fetchMeteoNetworkAll(stations) {
   const map = {};
-  // Sequential with 300ms stagger to avoid burst rate-limiting
   for (const s of stations) {
     try {
-      const data = await fetchInterpolated(s.lat, s.lon);
-      map[s.id] = data;
+      map[s.id] = await fetchInterpolated(s.lat, s.lon);
     } catch {
       map[s.id] = null;
     }
-    await new Promise(r => setTimeout(r, 300));
   }
   return map;
 }
