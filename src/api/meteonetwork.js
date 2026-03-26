@@ -15,11 +15,22 @@
  *   rh                    → % humidity
  */
 
+// In-memory cache: key = "lat,lon", value = { data, fetchedAt }
+// Prevents redundant calls when switching stations quickly or revisiting.
+// TTL matches the Vercel edge cache (10 min) so data stays consistent.
+const _cache = new Map();
+const CACHE_TTL_MS = 10 * 60 * 1000;
+
 /**
  * Fetch interpolated realtime data for a single lat/lon location.
  * Returns null if no data or token not configured.
  */
 async function fetchInterpolated(lat, lon) {
+  const key = `${lat},${lon}`;
+  const cached = _cache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.data;
+  }
   const resp = await fetch(`/api/meteonetwork?lat=${lat}&lon=${lon}`, {
     signal: AbortSignal.timeout(8000),
   });
@@ -36,7 +47,7 @@ async function fetchInterpolated(lat, lon) {
   const windKmh = parseFloat(row.wind_speed) || 0;
   const gustKmh = parseFloat(row.wind_gust) || 0;
 
-  return {
+  const result = {
     temp:           parseFloat(row.temperature) ?? null,
     humidity:       parseFloat(row.rh)          ?? null,
     mslp:           parseFloat(row.smlp)        ?? null,
@@ -48,6 +59,9 @@ async function fetchInterpolated(lat, lon) {
     distance:       parseFloat(row.distance)      ?? null,  // km to nearest real station
     source:         'MeteoNetwork',
   };
+
+  _cache.set(key, { data: result, fetchedAt: Date.now() });
+  return result;
 }
 
 /**
