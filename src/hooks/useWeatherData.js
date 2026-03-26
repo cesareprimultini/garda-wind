@@ -98,7 +98,9 @@ export function useWeatherData(stationId, modelId) {
     }
   }, [stationId, modelId]);
 
-  // On mount or station/model change: load cache first, then fetch in background
+  // On mount or station/model change: show cache instantly, debounce network fetch.
+  // 600ms debounce means rapid station-switching fires only ONE API call
+  // (for the station the user settles on), never a burst of 7 simultaneous calls.
   useEffect(() => {
     clearStaleCache();
 
@@ -108,13 +110,14 @@ export function useWeatherData(stationId, modelId) {
       setActiveModel(cached.data.usedModelId || modelId);
       setLastUpdated(new Date(cached.timestamp));
       setLoading(false);
-      // Still refresh in background
-      fetchData({ background: true });
-    } else {
-      fetchData({ background: false });
     }
 
+    const timer = setTimeout(() => {
+      fetchData({ background: !!cached });
+    }, 600);
+
     return () => {
+      clearTimeout(timer);
       if (abortRef.current) abortRef.current.abort();
     };
   }, [stationId, modelId]);
