@@ -1,11 +1,11 @@
 export const STATIONS = [
-  { id: 'torbole', name: 'Torbole', lat: 45.8689, lon: 10.8734 },
-  { id: 'riva', name: 'Riva del Garda', lat: 45.8864, lon: 10.8389 },
-  { id: 'malcesine', name: 'Malcesine', lat: 45.7609, lon: 10.8118 },
-  { id: 'campione', name: 'Campione', lat: 45.7822, lon: 10.7634 },
-  { id: 'bardolino', name: 'Bardolino', lat: 45.5494, lon: 10.7272 },
-  { id: 'leganavale', name: 'Lega Navale Garda', lat: 45.5775, lon: 10.7017 },
-  { id: 'peschiera', name: 'Peschiera', lat: 45.4394, lon: 10.6926 },
+  { id: 'torbole',    name: 'Torbole',          lat: 45.8689, lon: 10.8734, mnCode: 'TRN173' },
+  { id: 'riva',       name: 'Riva del Garda',   lat: 45.8864, lon: 10.8389, mnCode: 'TRN033' },
+  { id: 'malcesine',  name: 'Malcesine',        lat: 45.7609, lon: 10.8118, mnCode: null     },
+  { id: 'campione',   name: 'Campione',         lat: 45.7822, lon: 10.7634, mnCode: null     },
+  { id: 'bardolino',  name: 'Bardolino',        lat: 45.5494, lon: 10.7272, mnCode: 'VNT310' },
+  { id: 'leganavale', name: 'Lega Navale Garda',lat: 45.5775, lon: 10.7017, mnCode: null     },
+  { id: 'peschiera',  name: 'Peschiera',        lat: 45.4394, lon: 10.6926, mnCode: 'VNT259' },
 ];
 
 export const PRESSURE_NODES = {
