@@ -1,0 +1,3 @@
+# Wind observation log — T0193 Torbole actual vs AROME 1.3km forecast
+# Schema: ts, actual_wind_kn, actual_gust_kn, actual_dir, actual_temp, actual_time, arome_wind_kn, arome_gust_kn, arome_dir, dp_hpa, regime, ens_agreement
+# Started: 2026-03-26
