@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout data-log branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: data-log
           # GITHUB_TOKEN is automatically provided — no secrets needed
