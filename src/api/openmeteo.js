@@ -40,7 +40,7 @@ const BASE_PARAMS = {
   wind_speed_unit: 'kn',
   timezone: 'Europe/Rome',
   forecast_days: '7',
-  past_days: '1',
+  past_days: '7',
 };
 
 /**
@@ -96,7 +96,7 @@ export async function fetchPressureNode(lat, lon) {
     minutely_15: 'pressure_msl',
     timezone: 'Europe/Rome',
     forecast_days: '7',
-    past_days: '1',
+    past_days: '7',
   });
 
   const url = `/api/openmeteo?_path=v1/forecast&${params.toString()}`;

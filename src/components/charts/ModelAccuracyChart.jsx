@@ -1,11 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import {
   ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, CartesianGrid,
+  ReferenceLine, CartesianGrid,
 } from 'recharts';
-import { getRomeHour, getDayName } from '../../utils/formatters.js';
+import { getDayName } from '../../utils/formatters.js';
 
-const WINDOW_DAYS = 7;
+// ── Constants ─────────────────────────────────────────────────────
+const WINDOW_H     = 7 * 24;   // 7 days past
+const FUTURE_H     = 6;        // 6 h of forecast shown
+const PX_PER_DAY   = 220;      // chart pixel width per day (scrollable)
 
 // ── Colour helpers ────────────────────────────────────────────────
 const errColor = (absErr) => {
@@ -22,7 +25,7 @@ function reliabilityLabel(mae, n) {
   return          { text: 'poor',                  color: '#ff4d6d' };
 }
 
-// ── Aggregate stats over ALL historical observations ──────────────
+// ── Aggregate stats (all history, not just the 7-day window) ──────
 function computeAllStats(observations) {
   const rows = observations.filter(
     r => r.actual_wind_kn != null && r.arome_wind_kn != null
@@ -56,74 +59,48 @@ function computeAllStats(observations) {
   return { bias, mae, rmse, n: rows.length, days: dates.size, byRegime };
 }
 
-// ── Build unified chart data from observation log + future model ──
-// Each observation row already has actual_wind_kn AND arome_wind_kn,
-// so we don't need to join against the model hourly array for the past.
-// For the future (+6h) we append entries from the model data prop.
-function buildChartData(observations, modelData) {
-  const cutoff = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
-  const nowMs  = Date.now();
-
-  // Deduplicate by ts (in case two cron runs in same minute produced duplicates)
-  const obsMap = new Map();
-  for (const r of observations) {
-    const ts = r.ts?.endsWith('Z') ? r.ts : (r.ts + 'Z');
-    if (!obsMap.has(ts)) obsMap.set(ts, r);
+// ── Match observations → hourly model entries (±30 min window) ────
+// Each observation row has actual_wind_kn; the model entry provides its
+// own dp and windSpeed. We just need to attach the observed value.
+function buildPairs(pastEntries, observations) {
+  const WINDOW = 30 * 60 * 1000;
+  const pairs = new Map(); // time → { obsSpeed, error }
+  for (const entry of pastEntries) {
+    const entryMs = new Date(entry.time).getTime();
+    let closest = null, minDiff = Infinity;
+    for (const obs of observations) {
+      if (!obs?.ts || obs.actual_wind_kn == null) continue;
+      const ts  = obs.ts.endsWith('Z') ? obs.ts : obs.ts + 'Z';
+      const diff = Math.abs(new Date(ts).getTime() - entryMs);
+      if (diff < minDiff) { minDiff = diff; closest = obs; }
+    }
+    if (closest && minDiff <= WINDOW) {
+      const err = entry.windSpeed - closest.actual_wind_kn;
+      pairs.set(entry.time, { obsSpeed: closest.actual_wind_kn, error: err });
+    }
   }
-
-  const past = [...obsMap.values()]
-    .filter(r => {
-      const ms = new Date(r.ts?.endsWith('Z') ? r.ts : r.ts + 'Z').getTime();
-      return ms >= cutoff && ms <= nowMs + 5 * 60 * 1000;
-    })
-    .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
-    .map(r => {
-      const ts  = r.ts?.endsWith('Z') ? r.ts : r.ts + 'Z';
-      const err = r.arome_wind_kn != null && r.actual_wind_kn != null
-        ? r.arome_wind_kn - r.actual_wind_kn : null;
-      return {
-        time:       ts,
-        obsSpeed:   r.actual_wind_kn  ?? null,
-        modelSpeed: r.arome_wind_kn   ?? null,
-        error:      err,
-        obsColor:   err != null ? errColor(Math.abs(err)) : null,
-        isFuture:   false,
-      };
-    });
-
-  const future = (modelData ?? [])
-    .filter(d => d.diffH > 0 && d.diffH <= 6)
-    .map(d => ({
-      time:       d.time,
-      obsSpeed:   null,
-      modelSpeed: d.windSpeed ?? null,
-      error:      null,
-      obsColor:   null,
-      isFuture:   true,
-    }));
-
-  return [...past, ...future];
+  return pairs;
 }
 
-// ── X-tick: day name at midnight, "12:00" at noon ─────────────────
-function XTick({ x, y, payload, tickMeta }) {
-  const meta = tickMeta?.get(payload?.value);
-  if (!meta) return null;
-  if (meta.isNoon) {
+// ── X-tick: day name at midnight (h=00), dim "12" at noon (h=12) ──
+// Open-Meteo returns time strings in Rome local time ("2026-04-09T00:00"),
+// so extracting the hour substring directly gives the Rome hour.
+function XTick({ x, y, payload }) {
+  if (!payload?.value) return null;
+  const h = parseInt(payload.value.substring(11, 13), 10);
+  if (h === 0) {
     return (
       <g transform={`translate(${x},${y})`}>
-        <text x={0} y={13} textAnchor="middle" fill="#2a4060" fontSize={9}>12:00</text>
+        <text x={0} y={11} textAnchor="middle" fill="#5a7a99" fontSize={10} fontWeight={700}>
+          {getDayName(payload.value)}
+        </text>
+        <text x={0} y={23} textAnchor="middle" fill="#2a4060" fontSize={9}>00:00</text>
       </g>
     );
   }
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={11} textAnchor="middle" fill="#5a7a99" fontSize={10} fontWeight={700}>
-        {meta.dayLabel}
-      </text>
-      <text x={0} y={23} textAnchor="middle" fill="#2a4060" fontSize={9}>
-        00:00
-      </text>
+      <text x={0} y={14} textAnchor="middle" fill="#2a4060" fontSize={9}>12:00</text>
     </g>
   );
 }
@@ -134,40 +111,41 @@ const CustomTooltip = ({ active, payload }) => {
   const d = payload[0]?.payload;
   if (!d) return null;
   const hasObs = d.obsSpeed != null;
+  const hasDp  = d.dp != null;
   return (
     <div style={{
-      background: 'rgba(10,18,30,0.93)',
+      background: 'rgba(10,18,30,0.95)',
       border: '1px solid rgba(255,255,255,0.07)',
       borderLeft: `2px solid ${hasObs ? errColor(Math.abs(d.error ?? 0)) : '#4d8fff'}`,
       borderRadius: 6,
       padding: '5px 9px',
       pointerEvents: 'none',
-      minWidth: 130,
+      minWidth: 140,
+      fontSize: 10,
     }}>
       <div style={{ fontSize: 9, color: '#4a6080', marginBottom: 4 }}>
-        {new Date(d.time).toLocaleString('en-GB', {
-          weekday: 'short', month: 'short', day: 'numeric',
-          hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome',
-        })}
+        {d.time?.replace('T', ' ')}
       </div>
-      {d.modelSpeed != null && (
-        <div style={{ fontSize: 10, color: '#4d8fff', marginBottom: 2 }}>
-          AROME: <span className="font-num" style={{ fontWeight: 700 }}>
-            {Math.round(d.modelSpeed)} kn
-          </span>
-        </div>
-      )}
+      <div style={{ color: '#4d8fff', marginBottom: 2 }}>
+        AROME: <b>{d.windSpeed != null ? Math.round(d.windSpeed) : '—'} kn</b>
+      </div>
       {hasObs && (
         <>
-          <div style={{ fontSize: 10, color: errColor(Math.abs(d.error ?? 0)), marginBottom: 2 }}>
-            Observed: <span className="font-num" style={{ fontWeight: 700 }}>
-              {Math.round(d.obsSpeed)} kn
-            </span>
+          <div style={{ color: errColor(Math.abs(d.error ?? 0)), marginBottom: 2 }}>
+            Observed: <b>{Math.round(d.obsSpeed)} kn</b>
           </div>
-          <div style={{ fontSize: 9, color: '#4a6080' }}>
+          <div style={{ color: '#4a6080' }}>
             Error: {d.error > 0 ? '+' : ''}{(d.error ?? 0).toFixed(1)} kn
           </div>
         </>
+      )}
+      {hasDp && (
+        <div style={{ color: '#a05dfc', marginTop: hasObs ? 4 : 2 }}>
+          ΔP: <b>{d.dp > 0 ? '+' : ''}{d.dp.toFixed(1)} hPa</b>
+          <span style={{ marginLeft: 6, color: '#4a6080' }}>
+            {d.dp < -1.5 ? 'Pelér' : d.dp > 1.5 ? 'Ora' : 'Variable'}
+          </span>
+        </div>
       )}
     </div>
   );
@@ -175,54 +153,72 @@ const CustomTooltip = ({ active, payload }) => {
 
 // ── Main component ───────────────────────────────────────────────
 export default function ModelAccuracyChart({ data = [], observations = [], loading = false }) {
-  const allStats = useMemo(() => computeAllStats(observations), [observations]);
+  const scrollRef = useRef(null);
+
+  // All-time stats
+  const allStats    = useMemo(() => computeAllStats(observations), [observations]);
   const reliability = reliabilityLabel(allStats?.mae ?? Infinity, allStats?.n ?? 0);
 
-  const chartData = useMemo(
-    () => buildChartData(observations, data),
-    [observations, data]
+  // Chart window: past 7 days + 6h forecast
+  const chartRange = useMemo(
+    () => data.filter(d => d.diffH >= -WINDOW_H && d.diffH <= FUTURE_H),
+    [data]
+  );
+  const pastEntries = useMemo(
+    () => chartRange.filter(d => d.diffH <= 0),
+    [chartRange]
   );
 
-  const hasObs  = chartData.some(d => d.obsSpeed != null);
-  const lastPast = chartData.filter(d => !d.isFuture).at(-1)?.time ?? null;
+  // Match observations to model entries
+  const pairMap = useMemo(
+    () => buildPairs(pastEntries, observations),
+    [pastEntries, observations]
+  );
 
-  // Ticks: one entry per day at Rome midnight (00:00) and Rome noon (12:00)
-  // We pick entries where UTC minutes === 0 and Rome hour === 0 or 12.
-  const { ticks, tickMeta, midnightTimes } = useMemo(() => {
+  // Merge into chart data
+  const chartData = useMemo(() =>
+    chartRange.map(d => {
+      const pair = pairMap.get(d.time);
+      return {
+        ...d,
+        obsSpeed: pair?.obsSpeed ?? null,
+        error:    pair?.error    ?? null,
+        obsColor: pair ? errColor(Math.abs(pair.error ?? 0)) : null,
+      };
+    }),
+    [chartRange, pairMap]
+  );
+
+  const hasObs   = chartData.some(d => d.obsSpeed != null);
+  const nowEntry = chartData.find(d => d.isNow);
+
+  // Ticks: Rome midnight (h=00) and noon (h=12)
+  // Open-Meteo time strings are in Rome local time — extract hour from string directly.
+  const { ticks, midnightTimes } = useMemo(() => {
     const ticks = [];
-    const tickMeta = new Map();
     const midnightTimes = [];
-    const seenSlot = new Set();
-
-    for (const entry of chartData) {
-      const ms  = new Date(entry.time).getTime();
-      const min = new Date(entry.time).getUTCMinutes();
-      if (min !== 0) continue; // only on-the-hour entries
-
-      const h       = getRomeHour(entry.time);
-      const dayKey  = entry.time.substring(0, 10);
-      const slotKey = dayKey + '-' + h;
-      if (seenSlot.has(slotKey)) continue;
-
-      if (h === 0) {
-        seenSlot.add(slotKey);
-        ticks.push(entry.time);
-        tickMeta.set(entry.time, {
-          isNoon:   false,
-          dayLabel: getDayName(entry.time),
-        });
-        midnightTimes.push(entry.time);
-      } else if (h === 12) {
-        seenSlot.add(slotKey);
-        ticks.push(entry.time);
-        tickMeta.set(entry.time, { isNoon: true });
-      }
+    for (const e of chartRange) {
+      const h = parseInt(e.time.substring(11, 13), 10);
+      if (h === 0 || h === 12) ticks.push(e.time);
+      if (h === 0) midnightTimes.push(e.time);
     }
+    return { ticks, midnightTimes };
+  }, [chartRange]);
 
-    return { ticks, tickMeta, midnightTimes };
-  }, [chartData]);
+  // Chart pixel width (scrollable)
+  const chartW = useMemo(() => {
+    const days = Math.ceil(chartRange.length / 24);
+    return Math.max(days * PX_PER_DAY, 400);
+  }, [chartRange.length]);
 
-  if (!chartData.length) return null;
+  // Auto-scroll to the right (most recent) on mount / data change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [chartData.length]);
+
+  if (!chartRange.length) return null;
 
   return (
     <div className="card p-4">
@@ -241,7 +237,6 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             <div style={{ fontSize: 9, color: '#4a6080', marginTop: 2 }}>no history yet — check back later</div>
           )}
         </div>
-
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: reliability.color, letterSpacing: '0.04em' }}>
             {reliability.text.toUpperCase()}
@@ -261,14 +256,11 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             <div key={regime} style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: 6,
-              padding: '4px 10px',
-              fontSize: 10,
+              borderRadius: 6, padding: '4px 10px', fontSize: 10,
             }}>
               <span style={{
                 color: regime === 'peler' ? '#4d8fff' : regime === 'ora' ? '#f5a428' : '#8899aa',
-                fontWeight: 600,
-                marginRight: 6,
+                fontWeight: 600, marginRight: 6,
               }}>
                 {regime === 'peler' ? 'Pelér' : regime === 'ora' ? 'Ora' : 'Variable'}
               </span>
@@ -279,47 +271,61 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
         </div>
       )}
 
-      {/* ── Chart ── */}
-      <ResponsiveContainer width="100%" height={200}>
-        <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
+      {/* ── Scrollable chart ── */}
+      <div
+        ref={scrollRef}
+        style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', cursor: 'grab' }}
+      >
+        <ComposedChart
+          width={chartW}
+          height={210}
+          data={chartData}
+          margin={{ top: 4, right: 40, left: -20, bottom: 4 }}
+        >
           <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
 
           {/* Day separator lines at each Rome midnight */}
           {midnightTimes.map(t => (
-            <ReferenceLine
-              key={'day-' + t}
-              x={t}
-              stroke="rgba(255,255,255,0.10)"
-              strokeWidth={1}
-            />
+            <ReferenceLine key={'d-' + t} x={t} yAxisId="wind"
+              stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
           ))}
 
           {/* "now" dashed line */}
-          {lastPast && (
-            <ReferenceLine
-              x={lastPast}
-              stroke="rgba(255,255,255,0.28)"
-              strokeWidth={1}
-              strokeDasharray="3 3"
+          {nowEntry && (
+            <ReferenceLine x={nowEntry.time} yAxisId="wind"
+              stroke="rgba(255,255,255,0.28)" strokeWidth={1} strokeDasharray="3 3"
               label={{ value: 'now', fill: 'rgba(255,255,255,0.35)', fontSize: 8, position: 'insideTopRight' }}
             />
           )}
+
+          {/* ΔP zero line */}
+          <ReferenceLine y={0} yAxisId="dp"
+            stroke="rgba(160,93,252,0.15)" strokeWidth={1} />
 
           <XAxis
             dataKey="time"
             ticks={ticks}
             height={34}
-            tick={<XTick tickMeta={tickMeta} />}
+            tick={<XTick />}
             axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
             tickLine={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
           />
-          <YAxis
+
+          {/* Wind axis (left) */}
+          <YAxis yAxisId="wind" orientation="left"
             tick={{ fill: '#324158', fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            domain={[0, 'auto']}
-            unit=" kn"
+            axisLine={false} tickLine={false}
+            domain={[0, 'auto']} unit=" kn"
           />
+
+          {/* ΔP axis (right) */}
+          <YAxis yAxisId="dp" orientation="right"
+            domain={[-7, 7]}
+            tick={{ fill: '#4a3060', fontSize: 9 }}
+            axisLine={false} tickLine={false}
+            unit=" hPa" width={42}
+          />
+
           <Tooltip content={<CustomTooltip />} />
 
           <defs>
@@ -329,30 +335,34 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             </linearGradient>
           </defs>
 
-          {/* AROME model line + fill */}
-          <Area
-            type="monotone" dataKey="modelSpeed"
+          {/* AROME model wind */}
+          <Area yAxisId="wind"
+            type="monotone" dataKey="windSpeed"
             stroke="#4d8fff" strokeWidth={1.5}
             fill="url(#accModelGrad)" dot={false}
             isAnimationActive={false} connectNulls
           />
 
-          {/* Observed dots coloured by error magnitude */}
+          {/* ΔP line */}
+          <Line yAxisId="dp"
+            type="monotone" dataKey="dp"
+            stroke="#a05dfc" strokeWidth={1.5} strokeDasharray="5 3"
+            dot={false} isAnimationActive={false} connectNulls
+          />
+
+          {/* Observed wind — coloured dots only, no line */}
           {hasObs && (
-            <Line
-              type="monotone"
-              dataKey="obsSpeed"
-              stroke="transparent"
-              strokeWidth={0}
+            <Line yAxisId="wind"
+              type="monotone" dataKey="obsSpeed"
+              stroke="transparent" strokeWidth={0}
               dot={(props) => {
                 const { cx, cy, payload } = props;
                 if (payload?.obsSpeed == null) return null;
-                const col = payload.obsColor ?? '#0dcfa8';
                 return (
-                  <circle
-                    key={`obs-${payload.time}`}
-                    cx={cx} cy={cy} r={3}
-                    fill={col} stroke="#0a1e2a" strokeWidth={1}
+                  <circle key={`o-${payload.time}`}
+                    cx={cx} cy={cy} r={3.5}
+                    fill={payload.obsColor ?? '#0dcfa8'}
+                    stroke="#0a1e2a" strokeWidth={1}
                   />
                 );
               }}
@@ -362,13 +372,17 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             />
           )}
         </ComposedChart>
-      </ResponsiveContainer>
+      </div>
 
       {/* ── Legend ── */}
       <div className="flex gap-4 mt-2 text-xs" style={{ color: '#324158', flexWrap: 'wrap', rowGap: 4 }}>
         <span className="flex items-center gap-1">
           <span style={{ display: 'inline-block', width: 16, height: 2, background: '#4d8fff', borderRadius: 1 }} />
-          AROME forecast
+          AROME model
+        </span>
+        <span className="flex items-center gap-1">
+          <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed #a05dfc' }} />
+          ΔP (hPa)
         </span>
         {hasObs && (
           <>
@@ -391,7 +405,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
       {!hasObs && !loading && (
         <div style={{ fontSize: 10, color: '#4a6080', marginTop: 8, textAlign: 'center' }}>
           {observations.length > 0
-            ? `No observations in the last ${WINDOW_DAYS}-day window.`
+            ? 'No matched observations in the 7-day window.'
             : 'Observation history will appear once data is logged for this station.'}
         </div>
       )}
