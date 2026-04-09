@@ -213,7 +213,7 @@ export default function Dashboard({ data, loading, error, stationId }) {
   return (
     <div
       className="panel-full"
-      style={{ overflowY: 'auto', overflowX: 'hidden', padding: '10px 12px 4px', gap: 0 }}
+      style={{ overflowY: 'auto', overflowX: 'hidden', padding: '10px 12px 0', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', gap: 0 }}
     >
       {/* ── Offline banner ─────────────────────────────── */}
       {error && data && (

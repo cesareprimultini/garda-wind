@@ -13,6 +13,7 @@ export default function Header({
   lastUpdated,
   isRefreshing,
   onRefresh,
+  onInfoOpen,
 }) {
   return (
     <header
@@ -94,6 +95,28 @@ export default function Header({
             isRefreshing={isRefreshing}
             onClick={onRefresh}
           />
+
+          <button
+            onClick={onInfoOpen}
+            title="About this app"
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: 'var(--text-2)',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            i
+          </button>
         </div>
       </div>
 

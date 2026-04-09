@@ -12,10 +12,18 @@ import { useRefreshCycle } from './hooks/useRefreshCycle.js';
  * Root application component
  * Manages: active panel, selected station, selected model
  */
+const NOTICE_KEY = 'gw_beta_notice_v1';
+
 export default function App() {
   const [activePanel, setActivePanel] = useState('dashboard');
   const [selectedStation, setSelectedStation] = useState('torbole');
   const [selectedModel, setSelectedModel] = useState('meteofrance');
+  const [infoOpen, setInfoOpen] = useState(() => !localStorage.getItem(NOTICE_KEY));
+
+  const handleInfoDismiss = () => {
+    localStorage.setItem(NOTICE_KEY, '1');
+    setInfoOpen(false);
+  };
 
   const {
     data,
@@ -57,6 +65,7 @@ export default function App() {
         lastUpdated={lastUpdated}
         isRefreshing={isRefreshing}
         onRefresh={refresh}
+        onInfoOpen={() => setInfoOpen(true)}
       />
 
       {/* Active panel — takes all remaining space */}
@@ -93,8 +102,7 @@ export default function App() {
       {/* Bottom navigation */}
       <BottomNav activePanel={activePanel} onPanelChange={setActivePanel} />
 
-      {/* Beta notice + persistent info button */}
-      <BetaNotice />
+      <BetaNotice open={infoOpen} onDismiss={handleInfoDismiss} />
 
     </div>
   );
