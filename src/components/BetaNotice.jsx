@@ -3,24 +3,6 @@ import { useState, useEffect } from 'react';
 const STORAGE_KEY = 'gw_beta_notice_v1';
 const REPO_URL = 'https://github.com/cesareprimultini/garda-wind';
 
-const Row = ({ icon, color, bg, children }) => (
-  <div style={{
-    display: 'flex',
-    gap: 12,
-    alignItems: 'flex-start',
-    background: bg,
-    border: `1px solid ${color}22`,
-    borderRadius: 10,
-    padding: '10px 12px',
-    fontSize: 13,
-    color: 'var(--text-2)',
-    lineHeight: 1.55,
-  }}>
-    <span style={{ fontSize: 16, lineHeight: 1.4, flexShrink: 0 }}>{icon}</span>
-    <span>{children}</span>
-  </div>
-);
-
 export default function BetaNotice() {
   const [open, setOpen] = useState(false);
 
@@ -44,20 +26,19 @@ export default function BetaNotice() {
           bottom: 72,
           right: 12,
           zIndex: 900,
-          width: 26,
-          height: 26,
+          width: 28,
+          height: 28,
           borderRadius: '50%',
-          background: 'rgba(6,12,21,0.85)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          color: 'var(--text-2)',
-          fontSize: 12,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-secondary)',
+          fontSize: 13,
           fontWeight: 700,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           lineHeight: 1,
-          backdropFilter: 'blur(8px)',
         }}
       >
         i
@@ -71,87 +52,86 @@ export default function BetaNotice() {
             position: 'fixed',
             inset: 0,
             zIndex: 1000,
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(0,0,0,0.55)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 20,
+            padding: 24,
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#0c1827',
-              border: '1px solid rgba(255,255,255,0.09)',
-              borderRadius: 18,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              padding: '28px 24px 24px',
               maxWidth: 340,
               width: '100%',
-              overflow: 'hidden',
-              boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+              color: 'var(--text)',
+              fontSize: 14,
+              lineHeight: 1.6,
             }}
           >
-            {/* Header band */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(80,144,255,0.18) 0%, rgba(13,207,168,0.12) 100%)',
-              borderBottom: '1px solid rgba(255,255,255,0.07)',
-              padding: '20px 20px 16px',
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: 4 }}>
-                GardaWind
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.2 }}>
-                ⚠️ Very beta, much wind
-              </div>
+            {/* Title */}
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
+              ⚠️ Heads up
             </div>
 
             {/* Body */}
-            <div style={{ padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p style={{ margin: '0 0 10px', color: 'var(--text-2)' }}>
+              This is a <strong style={{ color: 'var(--text-1)' }}>very beta</strong> side project built by one person who likes kite-surfing and hates checking 5 weather tabs. Expect rough edges. No warranty expressed or implied. Use at your own risk of getting wet.
+            </p>
 
-              <Row icon="🤙" color="#5090ff" bg="rgba(80,144,255,0.06)">
-                Side project by one person who likes kite-surfing and hates checking 5 weather apps. Rough edges guaranteed. Use at your own risk of getting wet.
-              </Row>
+            <p style={{ margin: '0 0 16px', color: 'var(--text-2)' }}>
+              Bugs? Ideas? Strong opinions?{' '}
+              <a href={REPO_URL} target="_blank" rel="noreferrer"
+                style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+                Open an issue on GitHub
+              </a>{' '}
+              or drop me a line at{' '}
+              <a href="mailto:primultini.cesare@gmail.com"
+                style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+                primultini.cesare@gmail.com
+              </a>.
+            </p>
 
-              <Row icon="🤖" color="#0dcfa8" bg="rgba(13,207,168,0.06)">
-                Built with <strong style={{ color: 'var(--text-1)' }}>Claude</strong> (Anthropic's AI). Basically pair-programmed with a robot — judge accordingly.
-              </Row>
-
-              <Row icon="📱" color="#f5a428" bg="rgba(245,164,40,0.06)">
-                <strong style={{ color: 'var(--text-1)' }}>Add to homescreen</strong> for a real app feel. iOS: share → "Add to Home Screen". Android: browser menu → "Install app".
-              </Row>
-
-              <Row icon="💬" color="#8da5be" bg="rgba(141,165,190,0.06)">
-                Bugs or ideas?{' '}
-                <a href={REPO_URL} target="_blank" rel="noreferrer"
-                  style={{ color: '#7ab4ff', textDecoration: 'none', fontWeight: 600 }}>
-                  GitHub
-                </a>
-                {' '}or{' '}
-                <a href="mailto:primultini.cesare@gmail.com"
-                  style={{ color: '#7ab4ff', textDecoration: 'none' }}>
-                  primultini.cesare@gmail.com
-                </a>
-              </Row>
-
-              {/* Dismiss */}
-              <button
-                onClick={dismiss}
-                style={{
-                  marginTop: 4,
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #5090ff, #0dcfa8)',
-                  border: 'none',
-                  borderRadius: 10,
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  padding: '11px 0',
-                  cursor: 'pointer',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Got it, let's check the wind
-              </button>
+            {/* Add to homescreen hint */}
+            <div style={{
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              padding: '10px 12px',
+              fontSize: 12,
+              color: 'var(--text-2)',
+              marginBottom: 20,
+            }}>
+              <strong style={{ color: 'var(--text-1)' }}>📱 Pro tip:</strong> Add this to your homescreen — it works like a proper app. On iOS tap the share icon → "Add to Home Screen". On Android tap the browser menu → "Install app".
             </div>
+
+            {/* Dismiss */}
+            <button
+              onClick={dismiss}
+              style={{
+                width: '100%',
+                background: 'var(--accent)',
+                border: 'none',
+                borderRadius: 8,
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 600,
+                padding: '10px 0',
+                cursor: 'pointer',
+                marginBottom: 14,
+              }}
+            >
+              Got it, let's check the wind
+            </button>
+
+            {/* Claude credit */}
+            <p style={{ margin: 0, textAlign: 'center', fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic' }}>
+              coded with Claude (Anthropic)
+            </p>
           </div>
         </div>
       )}
