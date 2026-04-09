@@ -4,6 +4,7 @@ import BottomNav from './components/layout/BottomNav.jsx';
 import Dashboard from './views/Dashboard.jsx';
 import MapPanel from './views/MapPanel.jsx';
 import ForecastPanel from './views/ForecastPanel.jsx';
+import BetaNotice from './components/BetaNotice.jsx';
 import { useWeatherData } from './hooks/useWeatherData.js';
 import { useRefreshCycle } from './hooks/useRefreshCycle.js';
 
@@ -91,6 +92,9 @@ export default function App() {
 
       {/* Bottom navigation */}
       <BottomNav activePanel={activePanel} onPanelChange={setActivePanel} />
+
+      {/* Beta notice + persistent info button */}
+      <BetaNotice />
 
       {/* Attribution footer */}
       <div
