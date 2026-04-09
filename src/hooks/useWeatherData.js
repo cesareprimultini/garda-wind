@@ -127,8 +127,11 @@ export function useWeatherData(stationId, modelId) {
       setLoading(false);
     }
 
+    // Only fetch if there is no fresh cache entry.
+    // loadFromCache already returns null for entries older than CACHE_TTL_MS,
+    // so `cached !== null` guarantees the data is < 10 min old — no API call needed.
     const timer = setTimeout(() => {
-      fetchData({ background: !!cached });
+      if (!cached) fetchData({ background: false });
     }, 600);
 
     return () => {

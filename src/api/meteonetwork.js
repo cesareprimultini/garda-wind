@@ -30,14 +30,21 @@ async function fetchStationData(code) {
   });
 
   // 204 = no content, 401 = token expired/invalid, 503 = token not configured
-  if (resp.status === 204 || resp.status === 401 || resp.status === 503) return null;
-  if (!resp.ok) throw new Error(`MeteoNetwork proxy HTTP ${resp.status}`);
+  // Cache null so we don't retry on every station switch within the TTL.
+  if (resp.status === 204 || resp.status === 401 || resp.status === 503) {
+    _cache.set(code, { data: null, fetchedAt: Date.now() });
+    return null;
+  }
+  if (!resp.ok) {
+    _cache.set(code, { data: null, fetchedAt: Date.now() });
+    throw new Error(`MeteoNetwork proxy HTTP ${resp.status}`);
+  }
 
   const data = await resp.json();
-  if (data.error) return null;
+  if (data.error) { _cache.set(code, { data: null, fetchedAt: Date.now() }); return null; }
 
   const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
+  if (!row) { _cache.set(code, { data: null, fetchedAt: Date.now() }); return null; }
 
   const windKmh = parseFloat(row.wind_speed)  || 0;
   const gustKmh = parseFloat(row.wind_gust)   || 0;
