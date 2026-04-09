@@ -91,10 +91,7 @@ function XTick({ x, y, payload }) {
   if (h === 0) {
     return (
       <g transform={`translate(${x},${y})`}>
-        <text x={0} y={11} textAnchor="middle" fill="#5a7a99" fontSize={10} fontWeight={700}>
-          {getDayName(payload.value)}
-        </text>
-        <text x={0} y={23} textAnchor="middle" fill="#2a4060" fontSize={9}>00:00</text>
+        <text x={0} y={14} textAnchor="middle" fill="#2a4060" fontSize={9}>00:00</text>
       </g>
     );
   }
