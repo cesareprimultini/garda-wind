@@ -11,6 +11,7 @@ import { ChartSkeleton } from '../components/shared/Skeleton.jsx';
 
 // Meteotrentino WRF + ICON meteograms
 const METEOGRAMS = [
+  { key: 'icon-riva',  label: 'ICON D2 · Riva',         src: 'https://contenuti.meteotrentino.it/dati-meteo/meteogrammi/Icon2i_metgram_Riva.png' },
   { key: 'icon-medio', label: 'ICON D2 · Medio Garda',  src: 'https://contenuti.meteotrentino.it/dati-meteo/meteogrammi/Icon2i_metgram_MedioGarda.png' },
   { key: 'wrf-riva',   label: 'WRF 1km · Riva',         src: 'https://contenuti.meteotrentino.it/dati-meteo/meteogrammi/riva_garda.png' },
   { key: 'wrf-medio',  label: 'WRF 1km · Medio Garda',  src: 'https://contenuti.meteotrentino.it/dati-meteo/meteogrammi/medio_garda.png' },
