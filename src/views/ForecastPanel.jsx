@@ -25,34 +25,15 @@ function SectionLabel({ children, right }) {
   );
 }
 
-function PillGroup({ options, value, onChange }) {
-  return (
-    <div style={{ display: 'flex', gap: 5 }}>
-      {options.map(opt => (
-        <button
-          key={opt.value ?? opt}
-          onClick={() => onChange(opt.value ?? opt)}
-          className={`pill ${(opt.value ?? opt) === value ? 'pill-active' : ''}`}
-          style={{ fontSize: 11, padding: '3px 10px' }}
-        >
-          {opt.label ?? opt}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /**
  * Forecast panel — charts + 7-day outlook + Meteotrentino meteograms
- * Props: { data, loading, selectedModel, onModelChange }
+ * Props: { data, loading, selectedStation }
  */
-export default function ForecastPanel({ data, loading, selectedModel, selectedStation }) {
-  const [timeRange, setTimeRange]     = useState('48h');
-  const [imgErrors, setImgErrors]     = useState({});
-  const [obsData, setObsData]         = useState([]);
-  const [obsLoading, setObsLoading]   = useState(false);
+export default function ForecastPanel({ data, loading, selectedStation }) {
+  const [imgErrors, setImgErrors]   = useState({});
+  const [obsData, setObsData]       = useState([]);
+  const [obsLoading, setObsLoading] = useState(false);
 
-  // Fetch historical observations whenever the station changes (30-min client cache)
   useEffect(() => {
     if (!selectedStation) return;
     let cancelled = false;
@@ -62,61 +43,12 @@ export default function ForecastPanel({ data, loading, selectedModel, selectedSt
     });
     return () => { cancelled = true; };
   }, [selectedStation]);
-  const [gustCorr, setGustCorr]       = useState(() => {
-    try { return localStorage.getItem('gustCorr') === '1'; } catch { return false; }
-  });
-
-  useEffect(() => {
-    try { localStorage.setItem('gustCorr', gustCorr ? '1' : '0'); } catch {}
-  }, [gustCorr]);
 
   const hourlyRaw   = data?.hourly      ?? [];
   const liveHistory = data?.liveHistory ?? [];
 
-  // Apply +5 kn gust correction (local Garda lake-effect adjustment)
-  const hourly = gustCorr
-    ? hourlyRaw.map(h => ({ ...h, windGusts: h.windGusts != null ? h.windGusts + 5 : null }))
-    : hourlyRaw;
-
-  const timeRangeOpts = [
-    { value: '24h', label: '24h' },
-    { value: '48h', label: '48h' },
-    { value: '7d',  label: '7d'  },
-  ];
-
   return (
     <div className="panel-full" style={{ display: 'flex', flexDirection: 'column' }}>
-
-      {/* Sticky controls bar */}
-      <div
-        style={{
-          flexShrink: 0,
-          background: 'var(--surface)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid var(--glass-border)',
-          padding: '8px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <PillGroup options={timeRangeOpts} value={timeRange} onChange={setTimeRange} />
-          <button
-            onClick={() => setGustCorr(v => !v)}
-            title="Add +5 kn to model gusts — local Garda lake-effect correction"
-            className={`pill ${gustCorr ? 'pill-active' : ''}`}
-            style={{ fontSize: 11, padding: '3px 10px', opacity: gustCorr ? 1 : 0.55 }}
-          >
-            +5 kn gusts
-          </button>
-        </div>
-      </div>
-
-      {/* Scrollable content */}
       <div
         style={{
           flex: 1,
@@ -136,27 +68,23 @@ export default function ForecastPanel({ data, loading, selectedModel, selectedSt
           </>
         ) : (
           <>
-            {/* Wind session heatmap — THE "when to go" view */}
             <div>
               <SectionLabel right="scroll →">Session Windows</SectionLabel>
-              <WindHeatmap data={hourly} />
+              <WindHeatmap data={hourlyRaw} />
             </div>
 
-            {/* ΔP chart */}
             <div>
               <SectionLabel right="Bolzano − Ghedi">Pressure Differential</SectionLabel>
-              <DeltaPressureChart data={hourly} timeRange={timeRange} onTimeRangeChange={setTimeRange} />
+              <DeltaPressureChart data={hourlyRaw} />
             </div>
 
-            {/* Wind speed + live overlay */}
             <div>
               <SectionLabel right={liveHistory.length > 0 ? 'model + live observed' : 'model'}>
                 Wind Speed & Gusts
               </SectionLabel>
-              <WindSpeedChart data={hourly} timeRange={timeRange} liveHistory={liveHistory} />
+              <WindSpeedChart data={hourlyRaw} liveHistory={liveHistory} />
             </div>
 
-            {/* Model accuracy: model vs observed comparison */}
             <div>
               <SectionLabel right="AROME · ΔP estimate · live station">
                 Forecast Reliability
@@ -164,40 +92,26 @@ export default function ForecastPanel({ data, loading, selectedModel, selectedSt
               <ModelAccuracyChart data={hourlyRaw} observations={obsData} loading={obsLoading} />
             </div>
 
-            {/* Dual pressure */}
             <div>
               <SectionLabel right="Bolzano vs Ghedi">Raw Pressure</SectionLabel>
-              <DualPressureChart data={hourly} />
+              <DualPressureChart data={hourlyRaw} />
             </div>
 
-            {/* 7-day outlook */}
             <div>
               <SectionLabel>7-Day Outlook</SectionLabel>
-              <DayOutlookGrid data={hourly} />
+              <DayOutlookGrid data={hourlyRaw} />
             </div>
 
-            {/* Meteotrentino meteograms */}
             <div>
               <SectionLabel right="updated twice daily">Meteotrentino Meteograms</SectionLabel>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 8,
-                }}
-              >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {METEOGRAMS.map(mg => (
                   <div key={mg.key} className="card" style={{ padding: '10px', overflow: 'hidden' }}>
                     <div className="section-label" style={{ marginBottom: 6 }}>{mg.label}</div>
                     {imgErrors[mg.key] ? (
                       <div style={{ fontSize: 10, color: 'var(--text-3)', padding: '8px 0' }}>
                         Image unavailable —{' '}
-                        <a
-                          href="https://www.meteotrentino.it"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: '#5090ff' }}
-                        >
+                        <a href="https://www.meteotrentino.it" target="_blank" rel="noopener noreferrer" style={{ color: '#5090ff' }}>
                           meteotrentino.it
                         </a>
                       </div>

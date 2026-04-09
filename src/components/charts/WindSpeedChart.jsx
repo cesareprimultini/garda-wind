@@ -1,27 +1,33 @@
 import { useRef, useMemo } from 'react';
 import {
   ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
+  ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts';
-import { formatTime, getDayName, getRomeHour } from '../../utils/formatters.js';
+import { formatTime, getDayName } from '../../utils/formatters.js';
 import { QUALITY_COLORS } from '../../utils/constants.js';
 
-// ── Smart two-line tick: day name on first tick of each day ──────
-function SmartXTick({ x, y, payload, tickMeta }) {
-  const meta = tickMeta?.get(payload?.value);
-  if (!meta) return null;
+const WINDOW_DAYS = 7;
+const PX_PER_DAY  = 220;
+
+// ── X-tick: matching ModelAccuracyChart style ─────────────────────
+// Forecast times are Rome-local strings ("2026-04-09T12:00") from Open-Meteo.
+// substring(11,13) gives the Rome hour directly — no UTC conversion needed.
+function XTick({ x, y, payload }) {
+  if (!payload?.value) return null;
+  const h = parseInt(payload.value.substring(11, 13), 10);
+  if (h === 0) {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={14} textAnchor="middle" fill="#2a4060" fontSize={9}>00:00</text>
+      </g>
+    );
+  }
   return (
     <g transform={`translate(${x},${y})`}>
-      {meta.showDay && (
-        <text x={0} y={0} dy={11} textAnchor="middle"
-          fill="#5a7a99" fontSize={9} fontWeight={600} letterSpacing="0.04em">
-          {meta.dayLabel}
-        </text>
-      )}
-      <text x={0} y={0} dy={meta.showDay ? 22 : 13} textAnchor="middle"
-        fill="#324158" fontSize={10}>
-        {meta.time}
+      <text x={0} y={11} textAnchor="middle" fill="#4a6080" fontSize={9} fontWeight={600}>
+        {getDayName(payload.value)}
       </text>
+      <text x={0} y={23} textAnchor="middle" fill="#2a4060" fontSize={9}>12:00</text>
     </g>
   );
 }
@@ -66,23 +72,20 @@ const CustomTooltip = ({ active, payload }) => {
   );
 };
 
-export default function WindSpeedChart({ data = [], timeRange = '24h', liveHistory = [] }) {
-  const hasRendered = useRef(false);
+export default function WindSpeedChart({ data = [], liveHistory = [] }) {
+  const scrollRef = useRef(null);
 
-  const hours    = timeRange === '24h' ? 24 : timeRange === '48h' ? 48 : 168;
-  const filtered = data.filter(d => d.diffH >= -2 && d.diffH <= hours);
+  const filtered = data.filter(d => d.diffH >= -2 && d.diffH <= WINDOW_DAYS * 24);
   const nowEntry = data.find(d => d.isNow);
 
-  // Build live dots: map each live reading to the chart x-axis (time string)
-  // We match by finding the closest hourly entry time to anchor the scatter point.
+  // Live dots merged into chart data
   const livePoints = useMemo(() => {
     if (!liveHistory?.length || !filtered.length) return [];
-    const cutoff = Date.now() - hours * 3600000;
+    const cutoff = Date.now() - WINDOW_DAYS * 24 * 3600000;
     return liveHistory
       .filter(r => r?.windSpeedKn != null && r.time && new Date(r.time).getTime() >= cutoff)
       .map(r => {
         const rMs = new Date(r.time).getTime();
-        // Find nearest hourly entry to use as x-axis anchor
         let nearest = filtered[0];
         let minDiff = Infinity;
         for (const entry of filtered) {
@@ -91,58 +94,44 @@ export default function WindSpeedChart({ data = [], timeRange = '24h', liveHisto
         }
         return { time: nearest.time, liveSpeed: r.windSpeedKn };
       });
-  }, [liveHistory, filtered, hours]);
+  }, [liveHistory, filtered]);
 
-  // ── Build tick metadata ──────────────────────────────────────
-  const tickCount   = timeRange === '24h' ? 6 : timeRange === '48h' ? 8 : 7;
-  const step        = Math.max(1, Math.floor(filtered.length / tickCount));
-  const tickEntries = filtered.filter((_, i) => i % step === 0);
-
-  // For each calendar day find the tick closest to noon (12:00 Rome)
-  const dayToNoon = new Map();
-  tickEntries.forEach(entry => {
-    const day  = entry.time.substring(0, 10);
-    const dist = Math.abs(getRomeHour(entry.time) - 12);
-    if (!dayToNoon.has(day) || dist < Math.abs(getRomeHour(dayToNoon.get(day).time) - 12)) {
-      dayToNoon.set(day, entry);
-    }
-  });
-  const noonSet = new Set([...dayToNoon.values()].map(e => e.time));
-
-  const tickMeta = new Map();
-  tickEntries.forEach(entry => {
-    const showDay = noonSet.has(entry.time);
-    tickMeta.set(entry.time, {
-      time:     formatTime(entry.time),
-      showDay,
-      dayLabel: showDay ? getDayName(entry.time) : null,
-    });
-  });
-  const ticks = tickEntries.map(e => e.time);
-
-  const xAxisHeight  = 36;  // always — every view has at least today's label
-  const bottomMargin = 4;
-
-  const animate = !hasRendered.current;
-  if (filtered.length > 0) hasRendered.current = true;
-
-  // Merge live points into the chart data by time key for Scatter to work
   const chartData = useMemo(() => {
     if (!livePoints.length) return filtered;
     const liveMap = new Map(livePoints.map(p => [p.time, p.liveSpeed]));
-    return filtered.map(d => ({
-      ...d,
-      liveSpeed: liveMap.get(d.time) ?? null,
-    }));
+    return filtered.map(d => ({ ...d, liveSpeed: liveMap.get(d.time) ?? null }));
   }, [filtered, livePoints]);
 
+  // Ticks at midnight (h=0) and noon (h=12) — one per day each
+  const { ticks, midnightTimes } = useMemo(() => {
+    const ticks = [], midnightTimes = [];
+    const seen  = new Set();
+    for (const e of filtered) {
+      const h   = parseInt(e.time.substring(11, 13), 10);
+      const day = e.time.substring(0, 10);
+      if (h === 0) {
+        const k = day + '-mid';
+        if (!seen.has(k)) { seen.add(k); ticks.push(e.time); midnightTimes.push(e.time); }
+      } else if (h === 12) {
+        const k = day + '-noon';
+        if (!seen.has(k)) { seen.add(k); ticks.push(e.time); }
+      }
+    }
+    return { ticks, midnightTimes };
+  }, [filtered]);
+
+  const chartW  = WINDOW_DAYS * PX_PER_DAY;
   const hasLive = livePoints.length > 0;
 
   return (
     <div className="card p-4">
       <div className="section-label" style={{ marginBottom: 12 }}>Wind Speed &amp; Gusts</div>
-      <ResponsiveContainer width="100%" height={180}>
-        <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: bottomMargin }}>
+
+      <div ref={scrollRef} style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', cursor: 'grab' }}>
+        <ComposedChart
+          width={chartW} height={200} data={chartData}
+          margin={{ top: 4, right: 8, left: -20, bottom: 4 }}
+        >
           <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
 
           <ReferenceArea y1={8}  y2={12} fill={QUALITY_COLORS.marginal}  fillOpacity={0.06} />
@@ -150,22 +139,9 @@ export default function WindSpeedChart({ data = [], timeRange = '24h', liveHisto
           <ReferenceArea y1={22} y2={32} fill={QUALITY_COLORS.advanced}  fillOpacity={0.07} />
           <ReferenceArea y1={32} y2={60} fill={QUALITY_COLORS.storm}     fillOpacity={0.06} />
 
-          <XAxis
-            dataKey="time"
-            ticks={ticks}
-            height={xAxisHeight}
-            tick={<SmartXTick tickMeta={tickMeta} />}
-            axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: '#324158', fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            domain={[0, 'auto']}
-            unit=" kn"
-          />
-          <Tooltip content={<CustomTooltip />} />
+          {midnightTimes.map(t => (
+            <ReferenceLine key={'d-' + t} x={t} stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+          ))}
 
           {nowEntry && (
             <ReferenceLine
@@ -177,6 +153,23 @@ export default function WindSpeedChart({ data = [], timeRange = '24h', liveHisto
             />
           )}
 
+          <XAxis
+            dataKey="time"
+            ticks={ticks}
+            height={34}
+            tick={<XTick />}
+            axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
+            tickLine={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
+          />
+          <YAxis
+            tick={{ fill: '#324158', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            domain={[0, 'auto']}
+            unit=" kn"
+          />
+          <Tooltip content={<CustomTooltip />} />
+
           <defs>
             <linearGradient id="windGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor="#4d8fff" stopOpacity={0.35} />
@@ -187,13 +180,13 @@ export default function WindSpeedChart({ data = [], timeRange = '24h', liveHisto
             type="monotone" dataKey="windSpeed"
             stroke="#4d8fff" strokeWidth={2}
             fill="url(#windGrad)" dot={false}
-            isAnimationActive={animate} connectNulls
+            isAnimationActive={false} connectNulls
           />
           <Line
             type="monotone" dataKey="windGusts"
             stroke="#f5a428" strokeWidth={1.5}
             strokeDasharray="4 3" dot={false}
-            isAnimationActive={animate} connectNulls
+            isAnimationActive={false} connectNulls
           />
           {hasLive && (
             <Line
@@ -218,7 +211,7 @@ export default function WindSpeedChart({ data = [], timeRange = '24h', liveHisto
             />
           )}
         </ComposedChart>
-      </ResponsiveContainer>
+      </div>
 
       <div className="flex gap-4 mt-2 text-xs" style={{ color: '#324158' }}>
         <span className="flex items-center gap-1">

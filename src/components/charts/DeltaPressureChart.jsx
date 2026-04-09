@@ -1,27 +1,31 @@
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import {
   ComposedChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
+  ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts';
-import { formatTime, formatDp, getDayName, getRomeHour } from '../../utils/formatters.js';
+import { formatTime, formatDp, getDayName } from '../../utils/formatters.js';
 import { getDpInterpretation } from '../../utils/windPhysics.js';
 
-// ── Smart two-line tick ──────────────────────────────────────────
-function SmartXTick({ x, y, payload, tickMeta }) {
-  const meta = tickMeta?.get(payload?.value);
-  if (!meta) return null;
+const WINDOW_DAYS = 7;
+const PX_PER_DAY  = 220;
+
+// ── X-tick: matching ModelAccuracyChart style ─────────────────────
+function XTick({ x, y, payload }) {
+  if (!payload?.value) return null;
+  const h = parseInt(payload.value.substring(11, 13), 10);
+  if (h === 0) {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={14} textAnchor="middle" fill="#2a4060" fontSize={9}>00:00</text>
+      </g>
+    );
+  }
   return (
     <g transform={`translate(${x},${y})`}>
-      {meta.showDay && (
-        <text x={0} y={0} dy={11} textAnchor="middle"
-          fill="#5a7a99" fontSize={9} fontWeight={600} letterSpacing="0.04em">
-          {meta.dayLabel}
-        </text>
-      )}
-      <text x={0} y={0} dy={meta.showDay ? 22 : 13} textAnchor="middle"
-        fill="#324158" fontSize={10}>
-        {meta.time}
+      <text x={0} y={11} textAnchor="middle" fill="#4a6080" fontSize={9} fontWeight={600}>
+        {getDayName(payload.value)}
       </text>
+      <text x={0} y={23} textAnchor="middle" fill="#2a4060" fontSize={9}>12:00</text>
     </g>
   );
 }
@@ -60,95 +64,63 @@ const CustomTooltip = ({ active, payload }) => {
   );
 };
 
-/**
- * ΔP chart — clean zone-based design, no overlapping axis labels.
- *
- * Zone bands (ReferenceArea) replace inline ReferenceLine labels:
- *   below −1.5 hPa = Pelér zone (blue tint)
- *   above +1.5 hPa = Ora zone   (amber tint)
- *
- * Y-axis ticks are set to meaningful physics thresholds only.
- */
-export default function DeltaPressureChart({ data = [], timeRange = '48h', onTimeRangeChange }) {
-  const hasRendered = useRef(false);
+export default function DeltaPressureChart({ data = [] }) {
+  const scrollRef = useRef(null);
 
-  const hours    = timeRange === '24h' ? 24 : timeRange === '48h' ? 48 : 168;
-  const filtered = data.filter(d => d.dp !== null && d.diffH >= -2 && d.diffH <= hours);
+  const filtered = data.filter(d => d.dp !== null && d.diffH >= -2 && d.diffH <= WINDOW_DAYS * 24);
   const nowEntry = data.find(d => d.isNow);
 
-  // ── Build tick metadata ────────────────────────────────────
-  const tickCount   = timeRange === '24h' ? 6 : timeRange === '48h' ? 8 : 7;
-  const step        = Math.max(1, Math.floor(filtered.length / tickCount));
-  const tickEntries = filtered.filter((_, i) => i % step === 0);
-
-  // For each calendar day find the tick closest to noon (12:00 Rome)
-  const dayToNoon = new Map();
-  tickEntries.forEach(entry => {
-    const day  = entry.time.substring(0, 10);
-    const dist = Math.abs(getRomeHour(entry.time) - 12);
-    if (!dayToNoon.has(day) || dist < Math.abs(getRomeHour(dayToNoon.get(day).time) - 12)) {
-      dayToNoon.set(day, entry);
+  // Ticks at midnight and noon — one per day each
+  const { ticks, midnightTimes } = useMemo(() => {
+    const ticks = [], midnightTimes = [];
+    const seen  = new Set();
+    for (const e of filtered) {
+      const h   = parseInt(e.time.substring(11, 13), 10);
+      const day = e.time.substring(0, 10);
+      if (h === 0) {
+        const k = day + '-mid';
+        if (!seen.has(k)) { seen.add(k); ticks.push(e.time); midnightTimes.push(e.time); }
+      } else if (h === 12) {
+        const k = day + '-noon';
+        if (!seen.has(k)) { seen.add(k); ticks.push(e.time); }
+      }
     }
-  });
-  const noonSet = new Set([...dayToNoon.values()].map(e => e.time));
+    return { ticks, midnightTimes };
+  }, [filtered]);
 
-  const tickMeta = new Map();
-  tickEntries.forEach(entry => {
-    const showDay = noonSet.has(entry.time);
-    tickMeta.set(entry.time, {
-      time:     formatTime(entry.time),
-      showDay,
-      dayLabel: showDay ? getDayName(entry.time) : null,
-    });
-  });
-  const ticks = tickEntries.map(e => e.time);
-
-  const xAxisHeight  = 36;  // always — every view has at least today's label
-  const bottomMargin = 4;
-
-  // y-axis: only show meaningful threshold values
+  const chartW  = WINDOW_DAYS * PX_PER_DAY;
   const yTicks  = [-6, -3, 0, 3, 6];
   const yDomain = [-8, 8];
 
-  const animate = !hasRendered.current;
-  if (filtered.length > 0) hasRendered.current = true;
-
   return (
     <div className="card p-4">
-      {/* Header — no time-range buttons here, controlled by ForecastPanel */}
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 12 }}>
         ΔP Pressure Differential
         <span style={{ fontWeight: 400, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>hPa</span>
       </div>
 
-      <ResponsiveContainer width="100%" height={160}>
-        <ComposedChart data={filtered} margin={{ top: 10, right: 8, left: -6, bottom: bottomMargin }}>
+      <div ref={scrollRef} style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', cursor: 'grab' }}>
+        <ComposedChart
+          width={chartW} height={180} data={filtered}
+          margin={{ top: 10, right: 8, left: -6, bottom: 4 }}
+        >
           <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
 
-          {/* ── Zone bands — replaces all inline label clutter ── */}
-          {/* Pelér zone: below −1.5 */}
-          <ReferenceArea
-            y1={-1.5} y2={-8}
-            fill="#5090ff" fillOpacity={0.06}
-            ifOverflow="visible"
-          />
-          {/* Ora zone: above +1.5 */}
-          <ReferenceArea
-            y1={1.5} y2={8}
-            fill="#f5a428" fillOpacity={0.06}
-            ifOverflow="visible"
-          />
+          <ReferenceArea y1={-1.5} y2={-8} fill="#5090ff" fillOpacity={0.06} ifOverflow="visible" />
+          <ReferenceArea y1={1.5}  y2={8}  fill="#f5a428" fillOpacity={0.06} ifOverflow="visible" />
+
+          {midnightTimes.map(t => (
+            <ReferenceLine key={'d-' + t} x={t} stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+          ))}
 
           <XAxis
             dataKey="time"
             ticks={ticks}
-            height={xAxisHeight}
-            tick={<SmartXTick tickMeta={tickMeta} />}
+            height={34}
+            tick={<XTick />}
             axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
-            tickLine={false}
+            tickLine={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
           />
-
-          {/* Y-axis: physics-meaningful ticks, no unit suffix per tick */}
           <YAxis
             domain={yDomain}
             ticks={yTicks}
@@ -158,36 +130,22 @@ export default function DeltaPressureChart({ data = [], timeRange = '48h', onTim
             tickLine={false}
             width={28}
           />
-
           <Tooltip content={<CustomTooltip />} />
 
-          {/* Zero baseline */}
-          <ReferenceLine y={0} stroke="rgba(255,255,255,0.18)" strokeWidth={1.5} />
-
-          {/* Threshold lines — no labels, zones carry the meaning */}
+          <ReferenceLine y={0}    stroke="rgba(255,255,255,0.18)" strokeWidth={1.5} />
           <ReferenceLine y={-1.5} stroke="#5090ff" strokeOpacity={0.35} strokeDasharray="4 3" strokeWidth={1} />
           <ReferenceLine y={1.5}  stroke="#f5a428" strokeOpacity={0.35} strokeDasharray="4 3" strokeWidth={1} />
-
-          {/* ~20 kn Pelér */}
           <ReferenceLine
             y={-3}
-            stroke="#5090ff"
-            strokeOpacity={0.5}
-            strokeDasharray="6 3"
-            strokeWidth={1}
+            stroke="#5090ff" strokeOpacity={0.5} strokeDasharray="6 3" strokeWidth={1}
             label={{ value: '~20 kn', fill: 'rgba(80,144,255,0.55)', fontSize: 8, position: 'bottom' }}
           />
-          {/* ~15 kn Ora (symmetric) */}
           <ReferenceLine
             y={3}
-            stroke="#f5a428"
-            strokeOpacity={0.5}
-            strokeDasharray="6 3"
-            strokeWidth={1}
+            stroke="#f5a428" strokeOpacity={0.5} strokeDasharray="6 3" strokeWidth={1}
             label={{ value: '~15 kn', fill: 'rgba(245,164,40,0.55)', fontSize: 8, position: 'top' }}
           />
 
-          {/* Now line */}
           {nowEntry && (
             <ReferenceLine
               x={nowEntry.time}
@@ -203,12 +161,7 @@ export default function DeltaPressureChart({ data = [], timeRange = '48h', onTim
               <stop offset="0%"   stopColor="#5090ff" stopOpacity={0} />
               <stop offset="100%" stopColor="#5090ff" stopOpacity={0.3} />
             </linearGradient>
-            <linearGradient id="dpFillPos" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%"   stopColor="#f5a428" stopOpacity={0} />
-              <stop offset="100%" stopColor="#f5a428" stopOpacity={0.3} />
-            </linearGradient>
           </defs>
-
           <Area
             type="monotone"
             dataKey="dp"
@@ -216,13 +169,12 @@ export default function DeltaPressureChart({ data = [], timeRange = '48h', onTim
             strokeWidth={2}
             fill="url(#dpFillNeg)"
             dot={false}
-            isAnimationActive={animate}
+            isAnimationActive={false}
             connectNulls
           />
         </ComposedChart>
-      </ResponsiveContainer>
+      </div>
 
-      {/* Legend */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
         <span style={{ fontSize: 10, color: '#5090ff99', fontWeight: 600 }}>↓ Pelér (N→S) · negative</span>
         <span style={{ fontSize: 10, color: '#f5a42899', fontWeight: 600 }}>positive · Ora (S→N) ↑</span>
