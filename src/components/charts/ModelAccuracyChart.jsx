@@ -355,19 +355,19 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             />
           )}
 
-          {/* Observed wind — coloured dots only, no line */}
+          {/* Observed wind — neutral dots connected by subtle line */}
           {hasObs && (
             <Line yAxisId="wind"
               type="monotone" dataKey="obsSpeed"
-              stroke="transparent" strokeWidth={0}
+              stroke="rgba(255,255,255,0.18)" strokeWidth={1}
               dot={(props) => {
                 const { cx, cy, payload } = props;
                 if (payload?.obsSpeed == null) return null;
                 return (
                   <circle key={`o-${payload.time}`}
-                    cx={cx} cy={cy} r={3.5}
-                    fill={payload.obsColor ?? '#0dcfa8'}
-                    stroke="#0a1e2a" strokeWidth={1}
+                    cx={cx} cy={cy} r={3}
+                    fill="rgba(255,255,255,0.72)"
+                    stroke="rgba(255,255,255,0.18)" strokeWidth={1}
                   />
                 );
               }}
@@ -393,7 +393,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
         )}
         {hasObs && (
           <span className="flex items-center gap-1">
-            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#0dcfa8', border: '1px solid #0a1e2a' }} />
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(255,255,255,0.18)' }} />
             Observed
           </span>
         )}
