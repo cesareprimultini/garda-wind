@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import Header from './components/layout/Header.jsx';
 import BottomNav from './components/layout/BottomNav.jsx';
 import Dashboard from './views/Dashboard.jsx';
@@ -104,6 +105,7 @@ export default function App() {
 
       <BetaNotice open={infoOpen} onDismiss={handleInfoDismiss} />
 
+      <Analytics />
     </div>
   );
 }
