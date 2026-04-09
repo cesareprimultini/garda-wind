@@ -238,7 +238,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <div className="section-label">Forecast Reliability · AROME vs Observed</div>
+          <div className="section-label">Forecast Reliability</div>
           {allStats ? (
             <div style={{ fontSize: 9, color: '#4a6080', marginTop: 2 }}>
               {allStats.n} readings · {allStats.days} day{allStats.days !== 1 ? 's' : ''} of history
@@ -264,22 +264,24 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
       {/* ── Per-regime pills ── */}
       {allStats?.byRegime && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-          {Object.entries(allStats.byRegime).map(([regime, s]) => (
-            <div key={regime} style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: 6, padding: '4px 10px', fontSize: 10,
-            }}>
-              <span style={{
-                color: regime === 'peler' ? '#4d8fff' : regime === 'ora' ? '#f5a428' : '#8899aa',
-                fontWeight: 600, marginRight: 6,
+          {Object.entries(allStats.byRegime)
+            .filter(([regime]) => regime !== 'variable')
+            .map(([regime, s]) => (
+              <div key={regime} style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 6, padding: '4px 10px', fontSize: 10,
               }}>
-                {regime === 'peler' ? 'Pelér' : regime === 'ora' ? 'Ora' : 'Variable'}
-              </span>
-              <span style={{ color: errColor(s.mae) }}>MAE {s.mae.toFixed(1)} kn</span>
-              <span style={{ color: '#4a6080', marginLeft: 6 }}>n={s.count}</span>
-            </div>
-          ))}
+                <span style={{
+                  color: regime === 'peler' ? '#4d8fff' : '#f5a428',
+                  fontWeight: 600, marginRight: 6,
+                }}>
+                  {regime === 'peler' ? 'Pelér' : 'Ora'}
+                </span>
+                <span style={{ color: errColor(s.mae) }}>MAE {s.mae.toFixed(1)} kn</span>
+                <span style={{ color: '#4a6080', marginLeft: 6 }}>n={s.count}</span>
+              </div>
+            ))}
         </div>
       )}
 
@@ -390,20 +392,10 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           </span>
         )}
         {hasObs && (
-          <>
-            <span className="flex items-center gap-1">
-              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#0dcfa8', border: '1px solid #0a1e2a' }} />
-              ≤3 kn err
-            </span>
-            <span className="flex items-center gap-1">
-              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#f5a428', border: '1px solid #0a1e2a' }} />
-              3–6 kn
-            </span>
-            <span className="flex items-center gap-1">
-              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ff4d6d', border: '1px solid #0a1e2a' }} />
-              &gt;6 kn
-            </span>
-          </>
+          <span className="flex items-center gap-1">
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#0dcfa8', border: '1px solid #0a1e2a' }} />
+            Observed
+          </span>
         )}
       </div>
 
