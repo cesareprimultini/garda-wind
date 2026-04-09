@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MODELS } from '../utils/constants.js';
 import WindSpeedChart from '../components/charts/WindSpeedChart.jsx';
+import ModelAccuracyChart from '../components/charts/ModelAccuracyChart.jsx';
 import DeltaPressureChart from '../components/charts/DeltaPressureChart.jsx';
 import DualPressureChart from '../components/charts/DualPressureChart.jsx';
 import WindHeatmap from '../components/charts/WindHeatmap.jsx';
@@ -145,6 +146,14 @@ export default function ForecastPanel({ data, loading, selectedModel, onModelCha
                 Wind Speed & Gusts
               </SectionLabel>
               <WindSpeedChart data={hourly} timeRange={timeRange} liveHistory={liveHistory} />
+            </div>
+
+            {/* Model accuracy: model vs observed comparison */}
+            <div>
+              <SectionLabel right="AROME · ΔP estimate · live station">
+                Forecast Reliability
+              </SectionLabel>
+              <ModelAccuracyChart data={hourlyRaw} liveHistory={liveHistory} />
             </div>
 
             {/* Dual pressure */}
