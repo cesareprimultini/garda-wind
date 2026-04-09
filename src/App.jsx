@@ -43,7 +43,7 @@ export default function App() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100dvh', // dynamic viewport height for mobile
+        height: '100dvh',
         background: 'var(--bg)',
         overflow: 'hidden',
       }}
@@ -96,22 +96,6 @@ export default function App() {
       {/* Beta notice + persistent info button */}
       <BetaNotice />
 
-      {/* Attribution footer — hidden in PWA standalone mode */}
-      <div
-        className="attribution-bar"
-        style={{
-          background: 'var(--surface)',
-          borderTop: '1px solid var(--border)',
-          padding: '3px 12px',
-          fontSize: 9,
-          color: '#324158',
-          textAlign: 'center',
-          flexShrink: 0,
-          letterSpacing: '0.02em',
-        }}
-      >
-        Weather: Open-Meteo.com (CC BY 4.0) · Meteograms: Meteotrentino · ΔP methodology: profiwetter.ch
-      </div>
     </div>
   );
 }

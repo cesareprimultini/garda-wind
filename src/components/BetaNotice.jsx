@@ -23,7 +23,7 @@ export default function BetaNotice() {
         title="About this app"
         style={{
           position: 'fixed',
-          bottom: 72,
+          bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
           right: 12,
           zIndex: 900,
           width: 28,
@@ -129,8 +129,14 @@ export default function BetaNotice() {
             </button>
 
             {/* Claude credit */}
-            <p style={{ margin: 0, textAlign: 'center', fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic' }}>
+            <p style={{ margin: '0 0 12px', textAlign: 'center', fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic' }}>
               coded with Claude (Anthropic)
+            </p>
+
+            {/* Data attribution */}
+            <p style={{ margin: 0, textAlign: 'center', fontSize: 10, color: 'var(--text-3)', lineHeight: 1.6 }}>
+              Weather: Open-Meteo.com (CC BY 4.0)<br />
+              Meteograms: Meteotrentino · ΔP: profiwetter.ch
             </p>
           </div>
         </div>
