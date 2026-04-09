@@ -1,1 +1,2 @@
 {"ts":"2026-04-09T15:00Z","station":"malcesine","actual_wind_kn":11.274272,"actual_gust_kn":14.773183999999999,"actual_dir":180,"actual_temp":18.3,"actual_time":"04/09/2026 03:00:00 PM","arome_wind_kn":9.5,"arome_gust_kn":15,"arome_dir":199,"dp_hpa":-3.8,"regime":"peler"}
+{"ts":"2026-04-09T16:46Z","station":"malcesine","actual_wind_kn":null,"actual_gust_kn":0,"actual_dir":null,"actual_temp":null,"actual_time":"04/09/2026 04:40:00 PM","arome_wind_kn":8,"arome_gust_kn":11.3,"arome_dir":186,"dp_hpa":-2.7,"regime":"peler"}
