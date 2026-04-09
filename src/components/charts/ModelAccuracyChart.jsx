@@ -100,7 +100,10 @@ function XTick({ x, y, payload }) {
   }
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={14} textAnchor="middle" fill="#2a4060" fontSize={9}>12:00</text>
+      <text x={0} y={11} textAnchor="middle" fill="#4a6080" fontSize={9} fontWeight={600}>
+        {getDayName(payload.value)}
+      </text>
+      <text x={0} y={23} textAnchor="middle" fill="#2a4060" fontSize={9}>12:00</text>
     </g>
   );
 }
@@ -139,11 +142,11 @@ const CustomTooltip = ({ active, payload }) => {
           </div>
         </>
       )}
-      {hasDp && (
+      {d.estimatedWindFromDp != null && (
         <div style={{ color: '#a05dfc', marginTop: hasObs ? 4 : 2 }}>
-          ΔP: <b>{d.dp > 0 ? '+' : ''}{d.dp.toFixed(1)} hPa</b>
+          ΔP est.: <b>{Math.round(d.estimatedWindFromDp)} kn</b>
           <span style={{ marginLeft: 6, color: '#4a6080' }}>
-            {d.dp < -1.5 ? 'Pelér' : d.dp > 1.5 ? 'Ora' : 'Variable'}
+            {d.dp != null ? (d.dp < -1.5 ? 'Pelér' : d.dp > 1.5 ? 'Ora' : 'Variable') : ''}
           </span>
         </div>
       )}
@@ -189,8 +192,9 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
     [chartRange, pairMap]
   );
 
-  const hasObs   = chartData.some(d => d.obsSpeed != null);
-  const nowEntry = chartData.find(d => d.isNow);
+  const hasObs    = chartData.some(d => d.obsSpeed != null);
+  const hasDpEst  = chartData.some(d => d.estimatedWindFromDp != null);
+  const nowEntry  = chartData.find(d => d.isNow);
 
   // Ticks: Rome midnight (h=00) and noon (h=12)
   // Open-Meteo time strings are in Rome local time — extract hour from string directly.
@@ -280,7 +284,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           width={chartW}
           height={210}
           data={chartData}
-          margin={{ top: 4, right: 40, left: -20, bottom: 4 }}
+          margin={{ top: 4, right: 8, left: -20, bottom: 4 }}
         >
           <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
 
@@ -298,9 +302,6 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             />
           )}
 
-          {/* ΔP zero line */}
-          <ReferenceLine y={0} yAxisId="dp"
-            stroke="rgba(160,93,252,0.15)" strokeWidth={1} />
 
           <XAxis
             dataKey="time"
@@ -311,19 +312,11 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             tickLine={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
           />
 
-          {/* Wind axis (left) */}
+          {/* Wind axis (shared by model, ΔP estimate, and observed) */}
           <YAxis yAxisId="wind" orientation="left"
             tick={{ fill: '#324158', fontSize: 10 }}
             axisLine={false} tickLine={false}
             domain={[0, 'auto']} unit=" kn"
-          />
-
-          {/* ΔP axis (right) */}
-          <YAxis yAxisId="dp" orientation="right"
-            domain={[-7, 7]}
-            tick={{ fill: '#4a3060', fontSize: 9 }}
-            axisLine={false} tickLine={false}
-            unit=" hPa" width={42}
           />
 
           <Tooltip content={<CustomTooltip />} />
@@ -343,12 +336,14 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             isAnimationActive={false} connectNulls
           />
 
-          {/* ΔP line */}
-          <Line yAxisId="dp"
-            type="monotone" dataKey="dp"
-            stroke="#a05dfc" strokeWidth={1.5} strokeDasharray="5 3"
-            dot={false} isAnimationActive={false} connectNulls
-          />
+          {/* ΔP estimated wind — same axis as model/observed */}
+          {hasDpEst && (
+            <Line yAxisId="wind"
+              type="monotone" dataKey="estimatedWindFromDp"
+              stroke="#a05dfc" strokeWidth={1.5} strokeDasharray="5 3"
+              dot={false} isAnimationActive={false} connectNulls
+            />
+          )}
 
           {/* Observed wind — coloured dots only, no line */}
           {hasObs && (
@@ -380,10 +375,12 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           <span style={{ display: 'inline-block', width: 16, height: 2, background: '#4d8fff', borderRadius: 1 }} />
           AROME model
         </span>
-        <span className="flex items-center gap-1">
-          <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed #a05dfc' }} />
-          ΔP (hPa)
-        </span>
+        {hasDpEst && (
+          <span className="flex items-center gap-1">
+            <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed #a05dfc' }} />
+            ΔP est. (kn)
+          </span>
+        )}
         {hasObs && (
           <>
             <span className="flex items-center gap-1">
