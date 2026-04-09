@@ -85,7 +85,6 @@ function calcEnsembleDp(bolzanoValues, ghediValues) {
  * @param {object}      opts.meteoNetworkObs  - MeteoNetwork real station: stationId → observed data
  * @param {object|null} opts.malcesineObs     - MeteoProject: Fraglia Vela Malcesine (Davis VP2)
  * @param {object|null} opts.mtTorboleObs     - Meteotrentino T0193 Torbole: { latest, history[] }
- * @param {object|null} opts.mtRivaObs        - Meteotrentino T0298 Riva: { latest, history[] }
  * @param {object|null} opts.iparassitiObs    - iparassiti.com for current station (latest only)
  * @param {object|null} opts.arpavObs         - ARPAV Veneto station (Peschiera)
  * @param {object|null} opts.monteBaldoObs    - ARPAV Monte Baldo 1756m (synoptic Pelér indicator)
@@ -105,7 +104,6 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     meteoNetworkObs  = {},
     malcesineObs     = null,
     mtTorboleObs     = null,
-    mtRivaObs        = null,
     iparassitiObs    = null,
     arpavObs         = null,
     monteBaldoObs    = null,
@@ -431,8 +429,8 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     } : null,
     malcesineSource: malcesineObs ? 'Fraglia Vela Malcesine' : null,
     // Meteotrentino official stations (latest reading)
-    torboleWind: mtTorboleObs?.latest ?? null,   // T0193 — 5-min, official
-    rivaWind:    mtRivaObs?.latest    ?? meteoNetworkObs?.['riva'] ?? null,  // T0298 → MeteoNetwork fallback
+    torboleWind: mtTorboleObs?.latest ?? null,           // T0193 — 5-min, official
+    rivaWind:    meteoNetworkObs?.['riva'] ?? null,      // MeteoNetwork TRN033 (T0298 decommissioned 1964)
     // iparassiti.com Davis VP2 (current station, if mapped)
     iparassitiWind: iparassitiObs ?? null,
     // ARPAV Veneto official station (Peschiera)
@@ -445,16 +443,11 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
   // Used in ForecastPanel to overlay live dots on the model wind chart.
   // Priority: Meteotrentino history (has 6h of 5-min data) > empty
   let liveHistory = [];
-  if (stationId === 'torbole' || stationId === 'riva') {
-    const src = stationId === 'torbole' ? mtTorboleObs : mtRivaObs;
-    liveHistory = src?.history ?? [];
-    // If MT history is empty for Riva, try MeteoNetwork as a single-point fallback
-    if (!liveHistory.length && stationId === 'riva') {
-      const mn = meteoNetworkObs?.['riva'];
-      if (mn?.windSpeedKn != null) {
-        liveHistory = [{ ...mn, time: mn.observationTime ?? null }];
-      }
-    }
+  if (stationId === 'torbole') {
+    liveHistory = mtTorboleObs?.history ?? [];
+  } else if (stationId === 'riva') {
+    const mn = meteoNetworkObs?.['riva'];
+    if (mn?.windSpeedKn != null) liveHistory = [{ ...mn, time: mn.observationTime ?? null }];
   } else if (stationId === 'malcesine') {
     // iparassiti returns only latest; MeteoProject also only latest — no history available
     // If iparassiti is available, make a single-point history

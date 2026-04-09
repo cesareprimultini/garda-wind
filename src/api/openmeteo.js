@@ -158,8 +158,6 @@ export async function fetchAllData(stationId, modelId) {
     malcesineResult,
     // New: Meteotrentino T0193 (Torbole) — always fetch for ΔP context + live history
     mtTorboleResult,
-    // New: Meteotrentino T0298 (Riva) — always fetch
-    mtRivaResult,
     // New: iparassiti.com for the current station (if it has an ipLoc)
     iparassitiResult,
     // New: ARPAV Veneto for the current station (if it has an arpavCode)
@@ -184,8 +182,6 @@ export async function fetchAllData(stationId, modelId) {
     stationId === 'malcesine' ? fetchMalcesineObs() : Promise.resolve(null),
     // Meteotrentino Torbole (T0193) — 5-min, 6h history, always useful
     fetchMeteotrentino('T0193', 6),
-    // Meteotrentino Riva (T0298) — 5-min, always useful
-    fetchMeteotrentino('T0298', 6),
     // iparassiti for the selected station, if it has a loc mapping
     ipLoc ? fetchIparassiti(ipLoc) : Promise.resolve(null),
     // ARPAV for the selected station, if it has an arpavCode (Peschiera)
@@ -217,7 +213,6 @@ export async function fetchAllData(stationId, modelId) {
   logFail('MeteoNetwork',       meteoNetworkResult);
   logFail('Malcesine obs',      malcesineResult);
   logFail('Meteotrentino T0193',mtTorboleResult);
-  logFail('Meteotrentino T0298',mtRivaResult);
   logFail('iparassiti',         iparassitiResult);
   logFail('ARPAV',              arpavResult);
   logFail('Monte Baldo',        monteBaldoResult);
@@ -241,7 +236,6 @@ export async function fetchAllData(stationId, modelId) {
     malcesineObs:      malcesineResult.status     === 'fulfilled' ? malcesineResult.value     : null,
     // New live sources
     mtTorboleObs:      mtTorboleResult.status     === 'fulfilled' ? mtTorboleResult.value     : null,
-    mtRivaObs:         mtRivaResult.status        === 'fulfilled' ? mtRivaResult.value        : null,
     iparassitiObs:     iparassitiResult.status    === 'fulfilled' ? iparassitiResult.value    : null,
     arpavObs:          arpavResult.status         === 'fulfilled' ? arpavResult.value         : null,
     monteBaldoObs:     monteBaldoResult.status    === 'fulfilled' ? monteBaldoResult.value    : null,
