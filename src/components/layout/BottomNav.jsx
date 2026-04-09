@@ -13,7 +13,7 @@ export default function BottomNav({ activePanel, onPanelChange }) {
         bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
         left: 10,
         right: 10,
-        zIndex: 200,
+        zIndex: 1100,
         display: 'flex',
         background: 'rgba(255,255,255,0.07)',
         backdropFilter: 'blur(40px) saturate(180%)',
