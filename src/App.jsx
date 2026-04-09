@@ -107,6 +107,9 @@ export default function App() {
           textAlign: 'center',
           flexShrink: 0,
           letterSpacing: '0.02em',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
         }}
       >
         Weather: Open-Meteo.com (CC BY 4.0) · Meteograms: Meteotrentino · ΔP methodology: profiwetter.ch
