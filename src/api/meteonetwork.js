@@ -29,7 +29,8 @@ async function fetchStationData(code) {
     signal: AbortSignal.timeout(8000),
   });
 
-  if (resp.status === 204 || resp.status === 503) return null;
+  // 204 = no content, 401 = token expired/invalid, 503 = token not configured
+  if (resp.status === 204 || resp.status === 401 || resp.status === 503) return null;
   if (!resp.ok) throw new Error(`MeteoNetwork proxy HTTP ${resp.status}`);
 
   const data = await resp.json();
