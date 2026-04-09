@@ -96,8 +96,9 @@ export default function App() {
       {/* Beta notice + persistent info button */}
       <BetaNotice />
 
-      {/* Attribution footer */}
+      {/* Attribution footer — hidden in PWA standalone mode */}
       <div
+        className="attribution-bar"
         style={{
           background: 'var(--surface)',
           borderTop: '1px solid var(--border)',
@@ -107,9 +108,6 @@ export default function App() {
           textAlign: 'center',
           flexShrink: 0,
           letterSpacing: '0.02em',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
         }}
       >
         Weather: Open-Meteo.com (CC BY 4.0) · Meteograms: Meteotrentino · ΔP methodology: profiwetter.ch
