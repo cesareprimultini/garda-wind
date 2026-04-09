@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MODELS } from '../utils/constants.js';
+import { fetchObservations } from '../api/observations.js';
 import WindSpeedChart from '../components/charts/WindSpeedChart.jsx';
 import ModelAccuracyChart from '../components/charts/ModelAccuracyChart.jsx';
 import DeltaPressureChart from '../components/charts/DeltaPressureChart.jsx';
@@ -49,6 +50,19 @@ function PillGroup({ options, value, onChange }) {
 export default function ForecastPanel({ data, loading, selectedModel, onModelChange, selectedStation }) {
   const [timeRange, setTimeRange]     = useState('48h');
   const [imgErrors, setImgErrors]     = useState({});
+  const [obsData, setObsData]         = useState([]);
+  const [obsLoading, setObsLoading]   = useState(false);
+
+  // Fetch historical observations whenever the station changes (30-min client cache)
+  useEffect(() => {
+    if (!selectedStation) return;
+    let cancelled = false;
+    setObsLoading(true);
+    fetchObservations(selectedStation).then(rows => {
+      if (!cancelled) { setObsData(rows); setObsLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [selectedStation]);
   const [gustCorr, setGustCorr]       = useState(() => {
     try { return localStorage.getItem('gustCorr') === '1'; } catch { return false; }
   });
@@ -153,7 +167,7 @@ export default function ForecastPanel({ data, loading, selectedModel, onModelCha
               <SectionLabel right="AROME · ΔP estimate · live station">
                 Forecast Reliability
               </SectionLabel>
-              <ModelAccuracyChart data={hourlyRaw} liveHistory={liveHistory} />
+              <ModelAccuracyChart data={hourlyRaw} observations={obsData} loading={obsLoading} />
             </div>
 
             {/* Dual pressure */}
