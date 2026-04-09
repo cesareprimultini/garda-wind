@@ -1,6 +1,5 @@
 export const STATIONS = [
   { id: 'torbole',    name: 'Torbole',          lat: 45.8689, lon: 10.8734, mnCode: 'TRN173', mtCode: 'T0193', ipLoc: 'torbole'   },
-  { id: 'riva',       name: 'Riva del Garda',   lat: 45.8864, lon: 10.8389, mnCode: 'TRN033', mtCode: null,    ipLoc: null        },
   { id: 'malcesine',  name: 'Malcesine',        lat: 45.7609, lon: 10.8118, mnCode: null,      mtCode: null,    ipLoc: 'malcesine' },
   { id: 'bardolino',  name: 'Bardolino',        lat: 45.5775, lon: 10.7017, mnCode: 'VNT310', mtCode: null,    ipLoc: null        },
   { id: 'peschiera',  name: 'Peschiera',        lat: 45.4394, lon: 10.6926, mnCode: 'VNT259', mtCode: null,    ipLoc: null,       arpavCode: 300005960 },

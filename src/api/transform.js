@@ -430,7 +430,6 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
     malcesineSource: malcesineObs ? 'Fraglia Vela Malcesine' : null,
     // Meteotrentino official stations (latest reading)
     torboleWind: mtTorboleObs?.latest ?? null,           // T0193 — 5-min, official
-    rivaWind:    meteoNetworkObs?.['riva'] ?? null,      // MeteoNetwork TRN033 (T0298 decommissioned 1964)
     // iparassiti.com Davis VP2 (current station, if mapped)
     iparassitiWind: iparassitiObs ?? null,
     // ARPAV Veneto official station (Peschiera)
@@ -445,9 +444,6 @@ export function transformData(stationRaw, bolzanoRaw, ghediRaw, opts = {}) {
   let liveHistory = [];
   if (stationId === 'torbole') {
     liveHistory = mtTorboleObs?.history ?? [];
-  } else if (stationId === 'riva') {
-    const mn = meteoNetworkObs?.['riva'];
-    if (mn?.windSpeedKn != null) liveHistory = [{ ...mn, time: mn.observationTime ?? null }];
   } else if (stationId === 'malcesine') {
     // iparassiti returns only latest; MeteoProject also only latest — no history available
     // If iparassiti is available, make a single-point history

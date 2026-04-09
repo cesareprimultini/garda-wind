@@ -155,16 +155,14 @@ export default function Dashboard({ data, loading, error, stationId }) {
 
   // ── Live observed data (per-station) ──────────────────────────
   // Priority (newest / most reliable first):
-  //   torbole    → Meteotrentino T0193 (5-min official) > iparassiti (2-min) > MeteoNetwork > model
-  //   riva       → Meteotrentino T0298 (5-min official) > MeteoNetwork > model
-  //   malcesine  → iparassiti (5-min, same hardware) > Fraglia Vela MeteoProject > MeteoNetwork > model
+  //   torbole   → Meteotrentino T0193 (5-min official) > iparassiti > MeteoNetwork > model
+  //   malcesine → iparassiti > Fraglia Vela MeteoProject > model
   //   bardolino → Lega Navale Davis VP2 > MeteoNetwork > model
-  //   others     → MeteoNetwork > model
+  //   peschiera → ARPAV official > model
   const mnObs       = data?.observed?.meteoNetwork?.[stationId] ?? null;
   const ipObs       = data?.observed?.iparassitiWind ?? null;
   const LIVE_SOURCES = {
     torbole:    data?.observed?.torboleWind ?? ipObs ?? mnObs,
-    riva:       data?.observed?.rivaWind    ?? mnObs,
     malcesine:  ipObs ?? data?.observed?.malcesineWind ?? mnObs,
     bardolino:  data?.observed?.bardolinoWind ?? mnObs,
     peschiera:  data?.observed?.arpavWind    ?? mnObs,
