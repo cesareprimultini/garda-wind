@@ -1,6 +1,8 @@
-# GardaWind ⚓
+# GardaWind
 
-Wind & weather dashboard for kitesurfers on Lake Garda, Italy.
+Wind & weather dashboard for kitesurfers, windsurfers and wing-foilers on Lake Garda, Italy.
+
+**Live:** https://garda-wind.vercel.app
 
 ## Features
 
@@ -11,8 +13,9 @@ Wind & weather dashboard for kitesurfers on Lake Garda, Italy.
 - **Gear recommendations** — kite size and windsurf sail size
 - **7-day outlook** with day cards showing max wind, regime, ΔP range
 - **Interactive map** — all stations with live wind markers
-- **Smart caching** — 10-min background refresh, offline fallback to cache
-- **Dark nautical UI** — non-scrollable panel layout, monospace numbers
+- **Smart caching** — 10-min background refresh, offline fallback
+- **PWA** — installable on iOS and Android
+- **Dark nautical UI** — full-screen panel layout, no page scroll
 
 ## Setup
 
@@ -27,22 +30,19 @@ Open http://localhost:5173
 
 ```bash
 npm run build
-npm run preview
 ```
 
 ## Tech Stack
 
 - React 18 + Vite 5
 - Tailwind CSS 3
-- Recharts (charts)
-- react-leaflet + leaflet (map)
+- Recharts, react-leaflet
 - Open-Meteo API (free, no key required)
+- Vercel (hosting + analytics)
 
 ## Data Sources
 
-- **Weather**: [Open-Meteo](https://open-meteo.com/) (CC BY 4.0)
-  - Primary: MeteoFrance AROME 1.3km
-  - Fallback: DWD ICON D2 2km → Best Match
+- **Weather**: [Open-Meteo](https://open-meteo.com/) — AROME 1.3km primary, DWD ICON D2 fallback
 - **Pressure nodes**: Bolzano (46.4983°N, 11.3548°E) and Ghedi (45.4083°N, 10.2671°E)
 - **ΔP methodology**: profiwetter.ch
 - **Meteograms**: Meteotrentino
@@ -55,9 +55,9 @@ npm run preview
 |---|---|---|
 | < −3 hPa | Pelér (N→S) | ~20 kn |
 | −1.5 to −3 | Pelér building | 10–20 kn |
-| −1.5 to +1.5 | Variable/Transitional | — |
+| −1.5 to +1.5 | Variable | — |
 | +1.5 to +2 | Ora developing | 8–14 kn |
-| > +2 hPa | Good Ora (S→N) | 14+ kn |
+| > +2 hPa | Ora (S→N) | 14+ kn |
 
 ## Project Structure
 
