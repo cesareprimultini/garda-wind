@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://garda-wind.vercel.app/sitemap.xml
