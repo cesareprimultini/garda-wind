@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { MODELS } from '../utils/constants.js';
 import { fetchObservations } from '../api/observations.js';
 import WindSpeedChart from '../components/charts/WindSpeedChart.jsx';
 import ModelAccuracyChart from '../components/charts/ModelAccuracyChart.jsx';
@@ -47,7 +46,7 @@ function PillGroup({ options, value, onChange }) {
  * Forecast panel — charts + 7-day outlook + Meteotrentino meteograms
  * Props: { data, loading, selectedModel, onModelChange }
  */
-export default function ForecastPanel({ data, loading, selectedModel, onModelChange, selectedStation }) {
+export default function ForecastPanel({ data, loading, selectedModel, selectedStation }) {
   const [timeRange, setTimeRange]     = useState('48h');
   const [imgErrors, setImgErrors]     = useState({});
   const [obsData, setObsData]         = useState([]);
@@ -104,11 +103,6 @@ export default function ForecastPanel({ data, loading, selectedModel, onModelCha
           flexWrap: 'wrap',
         }}
       >
-        <PillGroup
-          options={MODELS.map(m => ({ value: m.id, label: m.label }))}
-          value={selectedModel}
-          onChange={onModelChange}
-        />
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <PillGroup options={timeRangeOpts} value={timeRange} onChange={setTimeRange} />
           <button
