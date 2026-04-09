@@ -23,7 +23,7 @@ export default function BetaNotice() {
         title="About this app"
         style={{
           position: 'fixed',
-          bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
           right: 12,
           zIndex: 900,
           width: 28,
