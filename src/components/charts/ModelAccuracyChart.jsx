@@ -373,7 +373,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
               }}
               activeDot={false}
               isAnimationActive={false}
-              connectNulls={false}
+              connectNulls={true}
             />
           )}
         </ComposedChart>
