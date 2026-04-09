@@ -1,5 +1,5 @@
 /**
- * Meteotrentino live station data — Torbole (T0193) and Riva del Garda (T0298).
+ * Meteotrentino live station data — Torbole (T0193).
  *
  * Endpoint: datiRealtimeUnaStazione — free, no auth, 5-min updates.
  * Returns a GeoJSON FeatureCollection; each Feature = one 5-min observation.
@@ -47,7 +47,7 @@ function parseFeature(feature) {
 /**
  * Fetch live + recent history for a Meteotrentino station.
  *
- * @param {string} stazione  — 'T0193' (Torbole) | 'T0298' (Riva del Garda)
+ * @param {string} stazione  — 'T0193' (Torbole)
  * @param {number} [hours=6] — hours of history (max 168)
  * @returns {Promise<{ latest: object|null, history: object[] }>}
  *   latest  — most recent reading that has wind data

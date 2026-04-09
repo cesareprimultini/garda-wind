@@ -3,7 +3,7 @@
  * Free, no auth, returns GeoJSON FeatureCollection with 5-min observations.
  *
  * Usage: /api/meteotrentino?stazione=T0193&h=6
- *   stazione: T0193 (Torbole Belvedere) | T0298 (Riva del Garda)
+ *   stazione: T0193 (Torbole Belvedere)
  *   h: hours of history, max 168 (default 6)
  *
  * Key fields per feature:

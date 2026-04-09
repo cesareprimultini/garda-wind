@@ -34,7 +34,7 @@ jobs:
       - name: Fetch snapshots for all stations
         run: |
           BASE="https://garda-wind.vercel.app/api/snapshot"
-          STATIONS="torbole riva malcesine bardolino peschiera"
+          STATIONS="torbole malcesine bardolino peschiera"
 
           for STATION in $STATIONS; do
             RESPONSE=$(curl -sf --max-time 25 "${BASE}?station=${STATION}" || echo "null")

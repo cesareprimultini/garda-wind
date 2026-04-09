@@ -2,7 +2,7 @@
  * /api/snapshot — Live observation vs AROME model snapshot for data logging.
  *
  * Called by the GitHub Actions log-observation workflow every 30 min for each station.
- * Usage: /api/snapshot?station=torbole|riva|malcesine|bardolino|peschiera
+ * Usage: /api/snapshot?station=torbole|malcesine|bardolino|peschiera
  *
  * Response schema (NDJSON row):
  * {
@@ -42,7 +42,6 @@ const GHEDI   = { lat: 45.4083, lon: 10.2671 };
 
 const STATIONS = {
   torbole:   { lat: 45.8689, lon: 10.8734, obs: 'meteotrentino', mtCode: 'T0193' },
-  riva:      { lat: 45.8864, lon: 10.8389, obs: 'meteotrentino', mtCode: 'T0298' },
   malcesine: { lat: 45.7609, lon: 10.8118, obs: 'iparassiti',    ipLoc: 'malcesine' },
   bardolino: { lat: 45.5775, lon: 10.7017, obs: 'legaNavale' },
   peschiera: { lat: 45.4394, lon: 10.6926, obs: 'arpav',         arpavCode: 300005960 },
@@ -252,10 +251,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Unknown station: ${stationId}` });
   }
 
-  // Current-hour timestamp (UTC)
-  const now = new Date();
-  now.setMinutes(0, 0, 0);
-  const ts = now.toISOString().substring(0, 16) + 'Z';
+  // Actual run timestamp (UTC, minute precision) — each 30-min cron gets its own row
+  const ts = new Date().toISOString().substring(0, 16) + 'Z';
 
   // Fetch obs, AROME, ΔP in parallel
   const [obsResult, aromeResult, dpResult] = await Promise.allSettled([

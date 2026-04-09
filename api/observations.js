@@ -1,5 +1,5 @@
 /**
- * /api/observations?station=torbole|riva|malcesine|bardolino|peschiera
+ * /api/observations?station=torbole|malcesine|bardolino|peschiera
  *
  * Serves historical wind observation logs from the data-log git branch.
  * Data lives at: github.com/cesareprimultini/garda-wind (data-log branch)
@@ -15,7 +15,7 @@
 const REPO  = 'cesareprimultini/garda-wind';
 const BRANCH = 'data-log';
 
-const VALID_STATIONS = new Set(['torbole', 'riva', 'malcesine', 'bardolino', 'peschiera']);
+const VALID_STATIONS = new Set(['torbole', 'malcesine', 'bardolino', 'peschiera']);
 
 // Legacy: torbole data before per-station files were introduced
 const LEGACY_FILE = 'data/observations.ndjson';

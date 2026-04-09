@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import {
   ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
+  ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from 'recharts';
-import { formatTime, getRomeHour, getDayName } from '../../utils/formatters.js';
+import { getRomeHour, getDayName } from '../../utils/formatters.js';
+
+const WINDOW_DAYS = 7;
 
 // ── Colour helpers ────────────────────────────────────────────────
 const errColor = (absErr) => {
@@ -20,31 +22,6 @@ function reliabilityLabel(mae, n) {
   return          { text: 'poor',                  color: '#ff4d6d' };
 }
 
-// ── Match historical observation rows to hourly model entries ─────
-// For each past hourly model entry, find the closest observation within ±30 min.
-function buildPairs(hourlyPast, observations) {
-  const WINDOW = 30 * 60 * 1000;
-  return hourlyPast.map(entry => {
-    const entryMs = new Date(entry.time).getTime();
-    let closest = null, minDiff = Infinity;
-    for (const obs of observations) {
-      if (!obs?.ts || obs.actual_wind_kn == null) continue;
-      const diff = Math.abs(new Date(obs.ts + (obs.ts.endsWith('Z') ? '' : 'Z')).getTime() - entryMs);
-      if (diff < minDiff) { minDiff = diff; closest = obs; }
-    }
-    if (!closest || minDiff > WINDOW) return null;
-    const err = entry.windSpeed - closest.actual_wind_kn;
-    return {
-      time:       entry.time,
-      diffH:      entry.diffH,
-      modelSpeed: entry.windSpeed,
-      dpSpeed:    entry.estimatedWindFromDp ?? null,
-      obsSpeed:   closest.actual_wind_kn,
-      error:      err,
-    };
-  }).filter(Boolean);
-}
-
 // ── Aggregate stats over ALL historical observations ──────────────
 function computeAllStats(observations) {
   const rows = observations.filter(
@@ -57,7 +34,6 @@ function computeAllStats(observations) {
   const mae  = errs.reduce((s, e) => s + Math.abs(e), 0) / errs.length;
   const rmse = Math.sqrt(errs.reduce((s, e) => s + e * e, 0) / errs.length);
 
-  // Per-regime breakdown
   const regimes = {};
   for (const r of rows) {
     const reg = r.regime ?? 'variable';
@@ -70,33 +46,83 @@ function computeAllStats(observations) {
       reg,
       {
         count,
-        mae: re.reduce((s, e) => s + Math.abs(e), 0) / count,
+        mae:  re.reduce((s, e) => s + Math.abs(e), 0) / count,
         bias: re.reduce((s, e) => s + e, 0) / count,
       },
     ])
   );
 
-  // Days of data
   const dates = new Set(rows.map(r => r.ts?.substring(0, 10)).filter(Boolean));
-
   return { bias, mae, rmse, n: rows.length, days: dates.size, byRegime };
 }
 
-// ── X-tick ───────────────────────────────────────────────────────
+// ── Build unified chart data from observation log + future model ──
+// Each observation row already has actual_wind_kn AND arome_wind_kn,
+// so we don't need to join against the model hourly array for the past.
+// For the future (+6h) we append entries from the model data prop.
+function buildChartData(observations, modelData) {
+  const cutoff = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const nowMs  = Date.now();
+
+  // Deduplicate by ts (in case two cron runs in same minute produced duplicates)
+  const obsMap = new Map();
+  for (const r of observations) {
+    const ts = r.ts?.endsWith('Z') ? r.ts : (r.ts + 'Z');
+    if (!obsMap.has(ts)) obsMap.set(ts, r);
+  }
+
+  const past = [...obsMap.values()]
+    .filter(r => {
+      const ms = new Date(r.ts?.endsWith('Z') ? r.ts : r.ts + 'Z').getTime();
+      return ms >= cutoff && ms <= nowMs + 5 * 60 * 1000;
+    })
+    .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
+    .map(r => {
+      const ts  = r.ts?.endsWith('Z') ? r.ts : r.ts + 'Z';
+      const err = r.arome_wind_kn != null && r.actual_wind_kn != null
+        ? r.arome_wind_kn - r.actual_wind_kn : null;
+      return {
+        time:       ts,
+        obsSpeed:   r.actual_wind_kn  ?? null,
+        modelSpeed: r.arome_wind_kn   ?? null,
+        error:      err,
+        obsColor:   err != null ? errColor(Math.abs(err)) : null,
+        isFuture:   false,
+      };
+    });
+
+  const future = (modelData ?? [])
+    .filter(d => d.diffH > 0 && d.diffH <= 6)
+    .map(d => ({
+      time:       d.time,
+      obsSpeed:   null,
+      modelSpeed: d.windSpeed ?? null,
+      error:      null,
+      obsColor:   null,
+      isFuture:   true,
+    }));
+
+  return [...past, ...future];
+}
+
+// ── X-tick: day name at midnight, "12:00" at noon ─────────────────
 function XTick({ x, y, payload, tickMeta }) {
   const meta = tickMeta?.get(payload?.value);
   if (!meta) return null;
+  if (meta.isNoon) {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={13} textAnchor="middle" fill="#2a4060" fontSize={9}>12:00</text>
+      </g>
+    );
+  }
   return (
     <g transform={`translate(${x},${y})`}>
-      {meta.showDay && (
-        <text x={0} y={0} dy={11} textAnchor="middle"
-          fill="#5a7a99" fontSize={9} fontWeight={600} letterSpacing="0.04em">
-          {meta.dayLabel}
-        </text>
-      )}
-      <text x={0} y={0} dy={meta.showDay ? 22 : 13} textAnchor="middle"
-        fill="#324158" fontSize={10}>
-        {meta.time}
+      <text x={0} y={11} textAnchor="middle" fill="#5a7a99" fontSize={10} fontWeight={700}>
+        {meta.dayLabel}
+      </text>
+      <text x={0} y={23} textAnchor="middle" fill="#2a4060" fontSize={9}>
+        00:00
       </text>
     </g>
   );
@@ -119,17 +145,15 @@ const CustomTooltip = ({ active, payload }) => {
       minWidth: 130,
     }}>
       <div style={{ fontSize: 9, color: '#4a6080', marginBottom: 4 }}>
-        {formatTime(d.time)}
+        {new Date(d.time).toLocaleString('en-GB', {
+          weekday: 'short', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome',
+        })}
       </div>
-      <div style={{ fontSize: 10, color: '#4d8fff', marginBottom: 2 }}>
-        Model: <span className="font-num" style={{ fontWeight: 700 }}>
-          {d.windSpeed != null ? Math.round(d.windSpeed) : '—'} kn
-        </span>
-      </div>
-      {d.estimatedWindFromDp != null && (
-        <div style={{ fontSize: 10, color: '#a05dfc', marginBottom: 2 }}>
-          ΔP est.: <span className="font-num" style={{ fontWeight: 700 }}>
-            {Math.round(d.estimatedWindFromDp)} kn
+      {d.modelSpeed != null && (
+        <div style={{ fontSize: 10, color: '#4d8fff', marginBottom: 2 }}>
+          AROME: <span className="font-num" style={{ fontWeight: 700 }}>
+            {Math.round(d.modelSpeed)} kn
           </span>
         </div>
       )}
@@ -150,77 +174,55 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 // ── Main component ───────────────────────────────────────────────
-/**
- * Props:
- *   data         — hourly model entries (from transform)
- *   observations — historical NDJSON rows from /api/observations
- *   loading      — true while observations are being fetched
- */
 export default function ModelAccuracyChart({ data = [], observations = [], loading = false }) {
-  // All-time stats from full history
   const allStats = useMemo(() => computeAllStats(observations), [observations]);
   const reliability = reliabilityLabel(allStats?.mae ?? Infinity, allStats?.n ?? 0);
 
-  // Chart window: past 48h model entries + 6h ahead
-  const chartRange = useMemo(
-    () => data.filter(d => d.diffH >= -48 && d.diffH <= 6),
-    [data]
-  );
-  const pastEntries = useMemo(
-    () => chartRange.filter(d => d.diffH <= 0),
-    [chartRange]
+  const chartData = useMemo(
+    () => buildChartData(observations, data),
+    [observations, data]
   );
 
-  // Match observations to past hourly entries for chart dots
-  const pairs = useMemo(
-    () => buildPairs(pastEntries, observations),
-    [pastEntries, observations]
-  );
+  const hasObs  = chartData.some(d => d.obsSpeed != null);
+  const lastPast = chartData.filter(d => !d.isFuture).at(-1)?.time ?? null;
 
-  const pairMap = useMemo(
-    () => new Map(pairs.map(p => [p.time, p])),
-    [pairs]
-  );
+  // Ticks: one entry per day at Rome midnight (00:00) and Rome noon (12:00)
+  // We pick entries where UTC minutes === 0 and Rome hour === 0 or 12.
+  const { ticks, tickMeta, midnightTimes } = useMemo(() => {
+    const ticks = [];
+    const tickMeta = new Map();
+    const midnightTimes = [];
+    const seenSlot = new Set();
 
-  const chartData = useMemo(() =>
-    chartRange.map(d => {
-      const pair = pairMap.get(d.time);
-      return {
-        ...d,
-        obsSpeed: pair?.obsSpeed ?? null,
-        error:    pair?.error    ?? null,
-        obsColor: pair != null ? errColor(Math.abs(pair.error)) : null,
-      };
-    }),
-    [chartRange, pairMap]
-  );
+    for (const entry of chartData) {
+      const ms  = new Date(entry.time).getTime();
+      const min = new Date(entry.time).getUTCMinutes();
+      if (min !== 0) continue; // only on-the-hour entries
 
-  const nowEntry = data.find(d => d.isNow);
-  const hasObs = pairs.length > 0;
+      const h       = getRomeHour(entry.time);
+      const dayKey  = entry.time.substring(0, 10);
+      const slotKey = dayKey + '-' + h;
+      if (seenSlot.has(slotKey)) continue;
 
-  // Ticks every 6 entries, day label at noon-closest tick
-  const tickEntries = chartRange.filter((_, i) => i % 6 === 0);
-  const dayToNoon = new Map();
-  tickEntries.forEach(e => {
-    const day  = e.time.substring(0, 10);
-    const dist = Math.abs(getRomeHour(e.time) - 12);
-    if (!dayToNoon.has(day) || dist < Math.abs(getRomeHour(dayToNoon.get(day).time) - 12)) {
-      dayToNoon.set(day, e);
+      if (h === 0) {
+        seenSlot.add(slotKey);
+        ticks.push(entry.time);
+        tickMeta.set(entry.time, {
+          isNoon:   false,
+          dayLabel: getDayName(entry.time),
+        });
+        midnightTimes.push(entry.time);
+      } else if (h === 12) {
+        seenSlot.add(slotKey);
+        ticks.push(entry.time);
+        tickMeta.set(entry.time, { isNoon: true });
+      }
     }
-  });
-  const noonSet = new Set([...dayToNoon.values()].map(e => e.time));
-  const tickMeta = new Map();
-  tickEntries.forEach(e => {
-    const showDay = noonSet.has(e.time);
-    tickMeta.set(e.time, {
-      time:     formatTime(e.time),
-      showDay,
-      dayLabel: showDay ? getDayName(e.time) : null,
-    });
-  });
-  const ticks = tickEntries.map(e => e.time);
 
-  if (!chartRange.length) return null;
+    return { ticks, tickMeta, midnightTimes };
+  }, [chartData]);
+
+  if (!chartData.length) return null;
 
   return (
     <div className="card p-4">
@@ -231,7 +233,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           <div className="section-label">Forecast Reliability · AROME vs Observed</div>
           {allStats ? (
             <div style={{ fontSize: 9, color: '#4a6080', marginTop: 2 }}>
-              {allStats.n} paired readings · {allStats.days} day{allStats.days !== 1 ? 's' : ''} of data
+              {allStats.n} readings · {allStats.days} day{allStats.days !== 1 ? 's' : ''} of history
             </div>
           ) : loading ? (
             <div style={{ fontSize: 9, color: '#4a6080', marginTop: 2 }}>loading history…</div>
@@ -240,7 +242,6 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           )}
         </div>
 
-        {/* Overall reliability badge */}
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: reliability.color, letterSpacing: '0.04em' }}>
             {reliability.text.toUpperCase()}
@@ -253,7 +254,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
         </div>
       </div>
 
-      {/* ── Per-regime stats pills ── */}
+      {/* ── Per-regime pills ── */}
       {allStats?.byRegime && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           {Object.entries(allStats.byRegime).map(([regime, s]) => (
@@ -278,33 +279,39 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
         </div>
       )}
 
-      {/* ── Chart: last 48h model vs observed ── */}
-      <ResponsiveContainer width="100%" height={190}>
+      {/* ── Chart ── */}
+      <ResponsiveContainer width="100%" height={200}>
         <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
 
-          {/* Shade history zone */}
-          {nowEntry && chartData[0] && (
-            <ReferenceArea
-              x1={chartData[0].time}
-              x2={nowEntry.time}
-              fill="rgba(255,255,255,0.02)"
-              label={{
-                value: '← history',
-                position: 'insideTopLeft',
-                fill: 'rgba(255,255,255,0.1)',
-                fontSize: 9,
-              }}
+          {/* Day separator lines at each Rome midnight */}
+          {midnightTimes.map(t => (
+            <ReferenceLine
+              key={'day-' + t}
+              x={t}
+              stroke="rgba(255,255,255,0.10)"
+              strokeWidth={1}
+            />
+          ))}
+
+          {/* "now" dashed line */}
+          {lastPast && (
+            <ReferenceLine
+              x={lastPast}
+              stroke="rgba(255,255,255,0.28)"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              label={{ value: 'now', fill: 'rgba(255,255,255,0.35)', fontSize: 8, position: 'insideTopRight' }}
             />
           )}
 
           <XAxis
             dataKey="time"
             ticks={ticks}
-            height={36}
+            height={34}
             tick={<XTick tickMeta={tickMeta} />}
             axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
-            tickLine={false}
+            tickLine={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
           />
           <YAxis
             tick={{ fill: '#324158', fontSize: 10 }}
@@ -315,40 +322,22 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           />
           <Tooltip content={<CustomTooltip />} />
 
-          {nowEntry && (
-            <ReferenceLine
-              x={nowEntry.time}
-              stroke="rgba(255,255,255,0.28)"
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              label={{ value: 'now', fill: 'rgba(255,255,255,0.35)', fontSize: 8, position: 'insideTopRight' }}
-            />
-          )}
-
           <defs>
             <linearGradient id="accModelGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#4d8fff" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#4d8fff" stopOpacity={0}   />
+              <stop offset="5%"  stopColor="#4d8fff" stopOpacity={0.18} />
+              <stop offset="95%" stopColor="#4d8fff" stopOpacity={0}    />
             </linearGradient>
           </defs>
 
-          {/* Model forecast */}
+          {/* AROME model line + fill */}
           <Area
-            type="monotone" dataKey="windSpeed"
-            stroke="#4d8fff" strokeWidth={2}
+            type="monotone" dataKey="modelSpeed"
+            stroke="#4d8fff" strokeWidth={1.5}
             fill="url(#accModelGrad)" dot={false}
             isAnimationActive={false} connectNulls
           />
 
-          {/* ΔP physics estimate */}
-          <Line
-            type="monotone" dataKey="estimatedWindFromDp"
-            stroke="#a05dfc" strokeWidth={1.5}
-            strokeDasharray="5 4" dot={false}
-            isAnimationActive={false} connectNulls
-          />
-
-          {/* Observed dots from history (coloured by error) */}
+          {/* Observed dots coloured by error magnitude */}
           {hasObs && (
             <Line
               type="monotone"
@@ -362,8 +351,8 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
                 return (
                   <circle
                     key={`obs-${payload.time}`}
-                    cx={cx} cy={cy} r={4.5}
-                    fill={col} stroke="#0a1e2a" strokeWidth={1.5}
+                    cx={cx} cy={cy} r={3}
+                    fill={col} stroke="#0a1e2a" strokeWidth={1}
                   />
                 );
               }}
@@ -379,24 +368,20 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
       <div className="flex gap-4 mt-2 text-xs" style={{ color: '#324158', flexWrap: 'wrap', rowGap: 4 }}>
         <span className="flex items-center gap-1">
           <span style={{ display: 'inline-block', width: 16, height: 2, background: '#4d8fff', borderRadius: 1 }} />
-          AROME model
-        </span>
-        <span className="flex items-center gap-1">
-          <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed #a05dfc' }} />
-          ΔP estimate
+          AROME forecast
         </span>
         {hasObs && (
           <>
             <span className="flex items-center gap-1">
-              <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: '#0dcfa8', border: '1px solid #0a1e2a' }} />
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#0dcfa8', border: '1px solid #0a1e2a' }} />
               ≤3 kn err
             </span>
             <span className="flex items-center gap-1">
-              <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: '#f5a428', border: '1px solid #0a1e2a' }} />
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#f5a428', border: '1px solid #0a1e2a' }} />
               3–6 kn
             </span>
             <span className="flex items-center gap-1">
-              <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: '#ff4d6d', border: '1px solid #0a1e2a' }} />
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ff4d6d', border: '1px solid #0a1e2a' }} />
               &gt;6 kn
             </span>
           </>
@@ -406,7 +391,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
       {!hasObs && !loading && (
         <div style={{ fontSize: 10, color: '#4a6080', marginTop: 8, textAlign: 'center' }}>
           {observations.length > 0
-            ? 'No observations in the last 48h window — check a longer period.'
+            ? `No observations in the last ${WINDOW_DAYS}-day window.`
             : 'Observation history will appear once data is logged for this station.'}
         </div>
       )}
