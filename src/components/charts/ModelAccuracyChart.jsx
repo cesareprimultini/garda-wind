@@ -3,18 +3,14 @@ import {
   ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
   ReferenceLine, CartesianGrid,
 } from 'recharts';
-import { getDayName } from '../../utils/formatters.js';
+import { getDayName, getRomeHour } from '../../utils/formatters.js';
 
 // ── Constants ─────────────────────────────────────────────────────
-const WINDOW_H     = 7 * 24;   // 7 days past
-const FUTURE_H     = 6;        // 6 h of forecast shown
-const PX_PER_DAY   = 220;      // chart pixel width per day (scrollable)
+const WINDOW_DAYS  = 7;
+const PX_PER_DAY   = 220;
 
-// Simple continuous ΔP → knots conversion (no time-of-day suppression).
-// Calibrated to the same anchor points as getDpInterpretation:
-//   |dp| = 1.5 hPa → ~10 kn,  |dp| = 3 hPa → ~20 kn  (slope ≈ 6.7 kn/hPa)
-// Using magnitude only so the line is always non-null and directly comparable
-// to the wind axis. Regime (Pelér vs Ora) is shown in the tooltip via dp sign.
+// Continuous ΔP → knots (no time-of-day suppression so the line is always present).
+// Anchors: |dp|=1.5 hPa → 10 kn, |dp|=3 hPa → 20 kn (slope ≈ 6.7 kn/hPa).
 function dpToKn(dp) {
   if (dp == null) return null;
   return Math.round(Math.abs(dp) * 6.7);
@@ -35,7 +31,7 @@ function reliabilityLabel(mae, n) {
   return          { text: 'poor',                  color: '#ff4d6d' };
 }
 
-// ── Aggregate stats (all history, not just the 7-day window) ──────
+// ── All-time stats ────────────────────────────────────────────────
 function computeAllStats(observations) {
   const rows = observations.filter(
     r => r.actual_wind_kn != null && r.arome_wind_kn != null
@@ -57,47 +53,18 @@ function computeAllStats(observations) {
   const byRegime = Object.fromEntries(
     Object.entries(regimes).map(([reg, { errs: re, count }]) => [
       reg,
-      {
-        count,
-        mae:  re.reduce((s, e) => s + Math.abs(e), 0) / count,
-        bias: re.reduce((s, e) => s + e, 0) / count,
-      },
+      { count, mae: re.reduce((s, e) => s + Math.abs(e), 0) / count,
+               bias: re.reduce((s, e) => s + e, 0) / count },
     ])
   );
-
   const dates = new Set(rows.map(r => r.ts?.substring(0, 10)).filter(Boolean));
   return { bias, mae, rmse, n: rows.length, days: dates.size, byRegime };
 }
 
-// ── Match observations → hourly model entries (±30 min window) ────
-// Each observation row has actual_wind_kn; the model entry provides its
-// own dp and windSpeed. We just need to attach the observed value.
-function buildPairs(pastEntries, observations) {
-  const WINDOW = 30 * 60 * 1000;
-  const pairs = new Map(); // time → { obsSpeed, error }
-  for (const entry of pastEntries) {
-    const entryMs = new Date(entry.time).getTime();
-    let closest = null, minDiff = Infinity;
-    for (const obs of observations) {
-      if (!obs?.ts || obs.actual_wind_kn == null) continue;
-      const ts  = obs.ts.endsWith('Z') ? obs.ts : obs.ts + 'Z';
-      const diff = Math.abs(new Date(ts).getTime() - entryMs);
-      if (diff < minDiff) { minDiff = diff; closest = obs; }
-    }
-    if (closest && minDiff <= WINDOW) {
-      const err = entry.windSpeed - closest.actual_wind_kn;
-      pairs.set(entry.time, { obsSpeed: closest.actual_wind_kn, error: err });
-    }
-  }
-  return pairs;
-}
-
-// ── X-tick: day name at midnight (h=00), dim "12" at noon (h=12) ──
-// Open-Meteo returns time strings in Rome local time ("2026-04-09T00:00"),
-// so extracting the hour substring directly gives the Rome hour.
+// ── X-tick ────────────────────────────────────────────────────────
 function XTick({ x, y, payload }) {
   if (!payload?.value) return null;
-  const h = parseInt(payload.value.substring(11, 13), 10);
+  const h = getRomeHour(payload.value);
   if (h === 0) {
     return (
       <g transform={`translate(${x},${y})`}>
@@ -120,41 +87,45 @@ const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
-  const hasObs = d.obsSpeed != null;
-  const hasDp  = d.dp != null;
+  const hasErr = d.error != null;
   return (
     <div style={{
       background: 'rgba(10,18,30,0.95)',
       border: '1px solid rgba(255,255,255,0.07)',
-      borderLeft: `2px solid ${hasObs ? errColor(Math.abs(d.error ?? 0)) : '#4d8fff'}`,
-      borderRadius: 6,
-      padding: '5px 9px',
-      pointerEvents: 'none',
-      minWidth: 140,
-      fontSize: 10,
+      borderLeft: `2px solid ${hasErr ? errColor(Math.abs(d.error)) : '#4d8fff'}`,
+      borderRadius: 6, padding: '5px 9px', pointerEvents: 'none', minWidth: 140, fontSize: 10,
     }}>
       <div style={{ fontSize: 9, color: '#4a6080', marginBottom: 4 }}>
-        {d.time?.replace('T', ' ')}
+        {new Date(d.time).toLocaleString('en-GB', {
+          weekday: 'short', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome',
+        })}
       </div>
-      <div style={{ color: '#4d8fff', marginBottom: 2 }}>
-        AROME: <b>{d.windSpeed != null ? Math.round(d.windSpeed) : '—'} kn</b>
-      </div>
-      {hasObs && (
+      {d.windSpeed != null && (
+        <div style={{ color: '#4d8fff', marginBottom: 2 }}>
+          AROME: <b>{Math.round(d.windSpeed)} kn</b>
+        </div>
+      )}
+      {d.obsSpeed != null && (
         <>
-          <div style={{ color: errColor(Math.abs(d.error ?? 0)), marginBottom: 2 }}>
+          <div style={{ color: hasErr ? errColor(Math.abs(d.error)) : '#fff', marginBottom: 2 }}>
             Observed: <b>{Math.round(d.obsSpeed)} kn</b>
           </div>
-          <div style={{ color: '#4a6080' }}>
-            Error: {d.error > 0 ? '+' : ''}{(d.error ?? 0).toFixed(1)} kn
-          </div>
+          {hasErr && (
+            <div style={{ color: '#4a6080' }}>
+              Error: {d.error > 0 ? '+' : ''}{d.error.toFixed(1)} kn
+            </div>
+          )}
         </>
       )}
       {d.dpKn != null && (
-        <div style={{ color: '#a05dfc', marginTop: hasObs ? 4 : 2 }}>
+        <div style={{ color: '#a05dfc', marginTop: 4 }}>
           ΔP est.: <b>{d.dpKn} kn</b>
-          <span style={{ marginLeft: 6, color: '#4a6080' }}>
-            {d.dp < -1.5 ? 'Pelér' : d.dp > 1.5 ? 'Ora' : 'Variable'}
-          </span>
+          {d.dp_hpa != null && (
+            <span style={{ marginLeft: 6, color: '#4a6080' }}>
+              {d.dp_hpa < -1.5 ? 'Pelér' : d.dp_hpa > 1.5 ? 'Ora' : 'Variable'}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -162,75 +133,79 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 // ── Main component ───────────────────────────────────────────────
+// `data` prop kept for API compatibility but chart is now fully observation-driven:
+// each NDJSON row already contains actual_wind_kn, arome_wind_kn, and dp_hpa,
+// so no null-filled model-backbone entries are needed.
 export default function ModelAccuracyChart({ data = [], observations = [], loading = false }) {
   const scrollRef = useRef(null);
 
-  // All-time stats
   const allStats    = useMemo(() => computeAllStats(observations), [observations]);
   const reliability = reliabilityLabel(allStats?.mae ?? Infinity, allStats?.n ?? 0);
 
-  // Chart window: past 7 days + 6h forecast
-  const chartRange = useMemo(
-    () => data.filter(d => d.diffH >= -WINDOW_H && d.diffH <= FUTURE_H),
-    [data]
-  );
-  const pastEntries = useMemo(
-    () => chartRange.filter(d => d.diffH <= 0),
-    [chartRange]
-  );
+  // Build chart data directly from observation rows — obsSpeed is never null.
+  const chartData = useMemo(() => {
+    const cutoff = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
-  // Match observations to model entries
-  const pairMap = useMemo(
-    () => buildPairs(pastEntries, observations),
-    [pastEntries, observations]
-  );
+    // Deduplicate by ts
+    const obsMap = new Map();
+    for (const r of observations) {
+      const ts = r.ts?.endsWith('Z') ? r.ts : r.ts + 'Z';
+      if (!obsMap.has(ts)) obsMap.set(ts, r);
+    }
 
-  // Merge into chart data
-  const chartData = useMemo(() =>
-    chartRange.map(d => {
-      const pair = pairMap.get(d.time);
-      return {
-        ...d,
-        obsSpeed: pair?.obsSpeed ?? null,
-        error:    pair?.error    ?? null,
-        obsColor: pair ? errColor(Math.abs(pair.error ?? 0)) : null,
-        dpKn:     dpToKn(d.dp),
-      };
-    }),
-    [chartRange, pairMap]
-  );
+    return [...obsMap.values()]
+      .filter(r => {
+        if (r.actual_wind_kn == null) return false;
+        const ms = new Date(r.ts?.endsWith('Z') ? r.ts : r.ts + 'Z').getTime();
+        return ms >= cutoff;
+      })
+      .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
+      .map(r => {
+        const ts  = r.ts?.endsWith('Z') ? r.ts : r.ts + 'Z';
+        const err = r.arome_wind_kn != null ? r.arome_wind_kn - r.actual_wind_kn : null;
+        return {
+          time:      ts,
+          obsSpeed:  r.actual_wind_kn,        // always non-null
+          windSpeed: r.arome_wind_kn ?? null,  // AROME at obs time (from log)
+          dpKn:      dpToKn(r.dp_hpa),         // ΔP at obs time (from log)
+          dp_hpa:    r.dp_hpa ?? null,
+          error:     err,
+          obsColor:  err != null ? errColor(Math.abs(err)) : null,
+        };
+      });
+  }, [observations]);
 
-  const hasObs   = chartData.some(d => d.obsSpeed != null);
+  const hasObs   = chartData.length > 0;
   const hasDpEst = chartData.some(d => d.dpKn != null);
-  const nowEntry  = chartData.find(d => d.isNow);
+  const lastTime = chartData.at(-1)?.time ?? null;
 
-  // Ticks: Rome midnight (h=00) and noon (h=12)
-  // Open-Meteo time strings are in Rome local time — extract hour from string directly.
+  // Ticks at first entry per Rome-day at hour 0 (midnight) and hour 12 (noon).
+  // Observation times are UTC strings — getRomeHour handles the conversion.
   const { ticks, midnightTimes } = useMemo(() => {
-    const ticks = [];
-    const midnightTimes = [];
-    for (const e of chartRange) {
-      const h = parseInt(e.time.substring(11, 13), 10);
-      if (h === 0 || h === 12) ticks.push(e.time);
-      if (h === 0) midnightTimes.push(e.time);
+    const ticks = [], midnightTimes = [];
+    const seen  = new Set();
+    for (const e of chartData) {
+      const h   = getRomeHour(e.time);
+      const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' })
+        .format(new Date(e.time)); // "YYYY-MM-DD" in Rome
+      if (h === 0) {
+        const k = day + '-mid';
+        if (!seen.has(k)) { seen.add(k); ticks.push(e.time); midnightTimes.push(e.time); }
+      } else if (h === 12) {
+        const k = day + '-noon';
+        if (!seen.has(k)) { seen.add(k); ticks.push(e.time); }
+      }
     }
     return { ticks, midnightTimes };
-  }, [chartRange]);
+  }, [chartData]);
 
-  // Chart pixel width (scrollable)
-  const chartW = useMemo(() => {
-    const days = Math.ceil(chartRange.length / 24);
-    return Math.max(days * PX_PER_DAY, 400);
-  }, [chartRange.length]);
+  const chartW = Math.max(WINDOW_DAYS * PX_PER_DAY, 400);
 
-  // Auto-scroll to the right (most recent) on mount / data change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-    }
+    if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
   }, [chartData.length]);
 
-  if (!chartRange.length) return null;
+  if (!chartData.length) return null;
 
   return (
     <div className="card p-4">
@@ -246,7 +221,7 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           ) : loading ? (
             <div style={{ fontSize: 9, color: '#4a6080', marginTop: 2 }}>loading history…</div>
           ) : (
-            <div style={{ fontSize: 9, color: '#4a6080', marginTop: 2 }}>no history yet — check back later</div>
+            <div style={{ fontSize: 9, color: '#4a6080', marginTop: 2 }}>no history yet</div>
           )}
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -261,21 +236,17 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
         </div>
       </div>
 
-      {/* ── Per-regime pills ── */}
+      {/* ── Per-regime pills (Pelér + Ora only) ── */}
       {allStats?.byRegime && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           {Object.entries(allStats.byRegime)
-            .filter(([regime]) => regime !== 'variable')
+            .filter(([r]) => r !== 'variable')
             .map(([regime, s]) => (
               <div key={regime} style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.07)',
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
                 borderRadius: 6, padding: '4px 10px', fontSize: 10,
               }}>
-                <span style={{
-                  color: regime === 'peler' ? '#4d8fff' : '#f5a428',
-                  fontWeight: 600, marginRight: 6,
-                }}>
+                <span style={{ color: regime === 'peler' ? '#4d8fff' : '#f5a428', fontWeight: 600, marginRight: 6 }}>
                   {regime === 'peler' ? 'Pelér' : 'Ora'}
                 </span>
                 <span style={{ color: errColor(s.mae) }}>MAE {s.mae.toFixed(1)} kn</span>
@@ -286,49 +257,34 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
       )}
 
       {/* ── Scrollable chart ── */}
-      <div
-        ref={scrollRef}
-        style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', cursor: 'grab' }}
-      >
+      <div ref={scrollRef} style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', cursor: 'grab' }}>
         <ComposedChart
-          width={chartW}
-          height={210}
-          data={chartData}
+          width={chartW} height={210} data={chartData}
           margin={{ top: 4, right: 8, left: -20, bottom: 4 }}
         >
           <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
 
-          {/* Day separator lines at each Rome midnight */}
           {midnightTimes.map(t => (
             <ReferenceLine key={'d-' + t} x={t} yAxisId="wind"
               stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
           ))}
 
-          {/* "now" dashed line */}
-          {nowEntry && (
-            <ReferenceLine x={nowEntry.time} yAxisId="wind"
+          {lastTime && (
+            <ReferenceLine x={lastTime} yAxisId="wind"
               stroke="rgba(255,255,255,0.28)" strokeWidth={1} strokeDasharray="3 3"
               label={{ value: 'now', fill: 'rgba(255,255,255,0.35)', fontSize: 8, position: 'insideTopRight' }}
             />
           )}
 
-
-          <XAxis
-            dataKey="time"
-            ticks={ticks}
-            height={34}
+          <XAxis dataKey="time" ticks={ticks} height={34}
             tick={<XTick />}
             axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
             tickLine={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
           />
-
-          {/* Wind axis (shared by model, ΔP estimate, and observed) */}
           <YAxis yAxisId="wind" orientation="left"
             tick={{ fill: '#324158', fontSize: 10 }}
-            axisLine={false} tickLine={false}
-            domain={[0, 'auto']} unit=" kn"
+            axisLine={false} tickLine={false} domain={[0, 'auto']} unit=" kn"
           />
-
           <Tooltip content={<CustomTooltip />} />
 
           <defs>
@@ -339,41 +295,33 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           </defs>
 
           {/* AROME model wind */}
-          <Area yAxisId="wind"
-            type="monotone" dataKey="windSpeed"
-            stroke="#4d8fff" strokeWidth={1.5}
-            fill="url(#accModelGrad)" dot={false}
-            isAnimationActive={false} connectNulls
+          <Area yAxisId="wind" type="monotone" dataKey="windSpeed"
+            stroke="#4d8fff" strokeWidth={1.5} fill="url(#accModelGrad)"
+            dot={false} isAnimationActive={false} connectNulls
           />
 
-          {/* ΔP estimated wind — continuous magnitude, same axis */}
+          {/* ΔP estimated wind */}
           {hasDpEst && (
-            <Line yAxisId="wind"
-              type="monotone" dataKey="dpKn"
+            <Line yAxisId="wind" type="monotone" dataKey="dpKn"
               stroke="#a05dfc" strokeWidth={1.5} strokeDasharray="5 3"
               dot={false} isAnimationActive={false} connectNulls
             />
           )}
 
-          {/* Observed wind — neutral dots connected by subtle line */}
+          {/* Observed wind — neutral dots, subtle connecting line, no nulls */}
           {hasObs && (
-            <Line yAxisId="wind"
-              type="monotone" dataKey="obsSpeed"
+            <Line yAxisId="wind" type="monotone" dataKey="obsSpeed"
               stroke="rgba(255,255,255,0.18)" strokeWidth={1}
               dot={(props) => {
                 const { cx, cy, payload } = props;
                 if (payload?.obsSpeed == null) return null;
                 return (
-                  <circle key={`o-${payload.time}`}
-                    cx={cx} cy={cy} r={3}
-                    fill="rgba(255,255,255,0.72)"
-                    stroke="rgba(255,255,255,0.18)" strokeWidth={1}
+                  <circle key={`o-${payload.time}`} cx={cx} cy={cy} r={3}
+                    fill="rgba(255,255,255,0.72)" stroke="rgba(255,255,255,0.18)" strokeWidth={1}
                   />
                 );
               }}
-              activeDot={false}
-              isAnimationActive={false}
-              connectNulls={true}
+              activeDot={false} isAnimationActive={false} connectNulls={false}
             />
           )}
         </ComposedChart>
@@ -398,14 +346,6 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
           </span>
         )}
       </div>
-
-      {!hasObs && !loading && (
-        <div style={{ fontSize: 10, color: '#4a6080', marginTop: 8, textAlign: 'center' }}>
-          {observations.length > 0
-            ? 'No matched observations in the 7-day window.'
-            : 'Observation history will appear once data is logged for this station.'}
-        </div>
-      )}
     </div>
   );
 }
