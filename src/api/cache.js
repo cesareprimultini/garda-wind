@@ -1,6 +1,6 @@
 import { CACHE_TTL_MS, CACHE_STALE_MS } from '../utils/constants.js';
 
-const CACHE_PREFIX = 'garda_wind_';
+const CACHE_PREFIX = 'garda_wind_v2_';
 
 /**
  * Save weather data to localStorage cache
