@@ -10,6 +10,16 @@ const WINDOW_H     = 7 * 24;   // 7 days past
 const FUTURE_H     = 6;        // 6 h of forecast shown
 const PX_PER_DAY   = 220;      // chart pixel width per day (scrollable)
 
+// Simple continuous ΔP → knots conversion (no time-of-day suppression).
+// Calibrated to the same anchor points as getDpInterpretation:
+//   |dp| = 1.5 hPa → ~10 kn,  |dp| = 3 hPa → ~20 kn  (slope ≈ 6.7 kn/hPa)
+// Using magnitude only so the line is always non-null and directly comparable
+// to the wind axis. Regime (Pelér vs Ora) is shown in the tooltip via dp sign.
+function dpToKn(dp) {
+  if (dp == null) return null;
+  return Math.round(Math.abs(dp) * 6.7);
+}
+
 // ── Colour helpers ────────────────────────────────────────────────
 const errColor = (absErr) => {
   if (absErr <= 3) return '#0dcfa8';
@@ -139,11 +149,11 @@ const CustomTooltip = ({ active, payload }) => {
           </div>
         </>
       )}
-      {d.estimatedWindFromDp != null && (
+      {d.dpKn != null && (
         <div style={{ color: '#a05dfc', marginTop: hasObs ? 4 : 2 }}>
-          ΔP est.: <b>{Math.round(d.estimatedWindFromDp)} kn</b>
+          ΔP est.: <b>{d.dpKn} kn</b>
           <span style={{ marginLeft: 6, color: '#4a6080' }}>
-            {d.dp != null ? (d.dp < -1.5 ? 'Pelér' : d.dp > 1.5 ? 'Ora' : 'Variable') : ''}
+            {d.dp < -1.5 ? 'Pelér' : d.dp > 1.5 ? 'Ora' : 'Variable'}
           </span>
         </div>
       )}
@@ -184,13 +194,14 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
         obsSpeed: pair?.obsSpeed ?? null,
         error:    pair?.error    ?? null,
         obsColor: pair ? errColor(Math.abs(pair.error ?? 0)) : null,
+        dpKn:     dpToKn(d.dp),
       };
     }),
     [chartRange, pairMap]
   );
 
-  const hasObs    = chartData.some(d => d.obsSpeed != null);
-  const hasDpEst  = chartData.some(d => d.estimatedWindFromDp != null);
+  const hasObs   = chartData.some(d => d.obsSpeed != null);
+  const hasDpEst = chartData.some(d => d.dpKn != null);
   const nowEntry  = chartData.find(d => d.isNow);
 
   // Ticks: Rome midnight (h=00) and noon (h=12)
@@ -333,10 +344,10 @@ export default function ModelAccuracyChart({ data = [], observations = [], loadi
             isAnimationActive={false} connectNulls
           />
 
-          {/* ΔP estimated wind — same axis as model/observed */}
+          {/* ΔP estimated wind — continuous magnitude, same axis */}
           {hasDpEst && (
             <Line yAxisId="wind"
-              type="monotone" dataKey="estimatedWindFromDp"
+              type="monotone" dataKey="dpKn"
               stroke="#a05dfc" strokeWidth={1.5} strokeDasharray="5 3"
               dot={false} isAnimationActive={false} connectNulls
             />
