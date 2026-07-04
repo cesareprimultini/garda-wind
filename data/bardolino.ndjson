@@ -1036,3 +1036,4 @@
 {"ts":"2026-07-04T15:40Z","station":"bardolino","actual_wind_kn":0,"actual_gust_kn":0,"actual_dir":19,"actual_temp":35.9,"actual_time":null,"arome_wind_kn":1.6,"arome_gust_kn":5.1,"arome_dir":187,"dp_hpa":-0.6,"regime":"variable"}
 {"ts":"2026-07-04T16:58Z","station":"bardolino","actual_wind_kn":0,"actual_gust_kn":0,"actual_dir":19.2,"actual_temp":36.1,"actual_time":null,"arome_wind_kn":0.2,"arome_gust_kn":3.1,"arome_dir":360,"dp_hpa":0.1,"regime":"variable"}
 {"ts":"2026-07-04T18:05Z","station":"bardolino","actual_wind_kn":0,"actual_gust_kn":0,"actual_dir":19.6,"actual_temp":30.6,"actual_time":null,"arome_wind_kn":1.4,"arome_gust_kn":3.1,"arome_dir":16,"dp_hpa":0.3,"regime":"variable"}
+{"ts":"2026-07-04T19:43Z","station":"bardolino","actual_wind_kn":0,"actual_gust_kn":0,"actual_dir":18.5,"actual_temp":26.4,"actual_time":null,"arome_wind_kn":2.3,"arome_gust_kn":3.9,"arome_dir":42,"dp_hpa":1.9,"regime":"ora"}
